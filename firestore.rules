@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated staff
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      // Disallow hard deletes; use status='inactive' or tombstones
+      allow delete: if isAdmin();
+    }
+    
+    // Tax Services
+    match /tax_services/{serviceId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // Financial Payments & Transactions - STRICT IMMUTABILITY
+    match /payment_transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Update only permitted for status changes (e.g. marked refunded), amounts cannot be altered
+      allow update: if isAuthenticated() && 
+                    request.resource.data.amount == resource.data.amount &&
+                    request.resource.data.receiptNumber == resource.data.receiptNumber;
+      // Confirmed payments must NEVER be deleted through client CRUD
+      allow delete: if false;
+    }
+    
+    // Refund Records - IMMUTABLE AUDIT TRAIL
+    match /refund_records/{refundId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    // Follow-ups & Reminders
+    match /follow_ups/{followUpId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // System Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}
