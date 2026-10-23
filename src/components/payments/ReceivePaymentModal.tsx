@@ -251,7 +251,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
                   type="number"
                   inputMode="numeric"
                   min="1"
-                  step="50"
+                  step="1"
                   value={amount || ''}
                   onChange={(e) => setAmount(parseInt(e.target.value, 10) || 0)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-white font-mono font-bold text-sm focus:outline-none focus:border-emerald-500"

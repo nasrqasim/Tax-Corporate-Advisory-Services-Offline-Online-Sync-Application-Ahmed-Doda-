@@ -361,7 +361,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                   type="number"
                   inputMode="numeric"
                   min="0"
-                  step="100"
+                  step="1"
                   value={agreedFee}
                   onChange={(e) => setAgreedFee(parseInt(e.target.value, 10) || 0)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
@@ -375,7 +375,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                   type="number"
                   inputMode="numeric"
                   min="0"
-                  step="100"
+                  step="1"
                   value={discount}
                   onChange={(e) => setDiscount(parseInt(e.target.value, 10) || 0)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
