@@ -5,13 +5,15 @@ import {
   Download,
   Share2,
   CheckCircle,
-  Briefcase
+  Briefcase,
+  MessageSquare
 } from 'lucide-react';
 import { PaymentTransaction } from '../../types/payment';
 import { TaxService } from '../../types/service';
 import { Customer } from '../../types/customer';
 import { BusinessProfile } from '../../types/settings';
 import { formatPKR } from '../../services/financial/ledger';
+import { DEVELOPER_CREDIT, sharePaymentOnWhatsApp } from '../../services/native/whatsappShare';
 
 interface PrintableReceiptModalProps {
   isOpen: boolean;
@@ -48,28 +50,46 @@ export const PrintableReceiptModal: React.FC<PrintableReceiptModalProps> = ({
     : Math.max(0, prevBal - transaction.amount);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[95dvh] sm:max-h-[95vh]">
         {/* Header Controls (Hidden on Print) */}
-        <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/70 no-print">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white">Official Payment Receipt</span>
-            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-emerald-400 font-mono">
+        <div className="px-4 sm:px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/70 no-print gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="font-bold text-xs sm:text-sm text-white truncate">Official Receipt</span>
+            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-emerald-400 font-mono shrink-0">
               {transaction.receiptNumber}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition cursor-pointer shadow-sm"
+              type="button"
+              onClick={() => sharePaymentOnWhatsApp({
+                payment: transaction,
+                service,
+                customer,
+                businessProfile,
+                previousBalance: prevBal,
+                remainingBalance: remBal
+              })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm min-h-[38px]"
+              title="Share receipt via WhatsApp"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print / Save PDF</span>
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
             </button>
             <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm min-h-[38px]"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print / PDF</span>
+            </button>
+            <button
+              type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center"
             >
               <X className="w-4 h-4" />
             </button>
@@ -77,7 +97,7 @@ export const PrintableReceiptModal: React.FC<PrintableReceiptModalProps> = ({
         </div>
 
         {/* PRINTABLE RECEIPT CANVAS */}
-        <div className="p-6 overflow-y-auto bg-white text-slate-900 printable-area selection:bg-emerald-200">
+        <div className="p-4 sm:p-6 overflow-y-auto bg-white text-slate-900 printable-area selection:bg-emerald-200">
           {/* Business Header */}
           <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
@@ -92,8 +112,9 @@ export const PrintableReceiptModal: React.FC<PrintableReceiptModalProps> = ({
               <p className="text-xs text-slate-600 mt-1 max-w-md">
                 {businessProfile.address}, {businessProfile.city}
               </p>
-              <div className="text-[11px] text-slate-600 mt-0.5 flex items-center gap-3">
+              <div className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <span>Phone: {businessProfile.primaryPhone}</span>
+                <span>Email: {businessProfile.email || 'ahmeddodataxcrm@gmail.com'}</span>
                 {businessProfile.ntn && (
                   <span className="font-semibold text-slate-900 font-mono">
                     NTN: {businessProfile.ntn}
@@ -221,9 +242,14 @@ export const PrintableReceiptModal: React.FC<PrintableReceiptModalProps> = ({
             </div>
           </div>
 
-          {/* Footer Note */}
-          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500">
-            {businessProfile.receiptFooterNote} • System Generated Receipt • Stored Locally & Synced
+          {/* Footer Note & Developer Credit */}
+          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500 space-y-1">
+            <div>
+              {businessProfile.receiptFooterNote} • System Generated Receipt • Stored Locally & Synced
+            </div>
+            <div className="font-semibold text-slate-700 tracking-wide pt-1">
+              {businessProfile.developerCredit || DEVELOPER_CREDIT}
+            </div>
           </div>
         </div>
       </div>

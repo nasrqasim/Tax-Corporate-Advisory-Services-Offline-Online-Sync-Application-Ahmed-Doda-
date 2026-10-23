@@ -104,15 +104,15 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-xs space-y-3">
+      <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-xs space-y-2.5">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search service by Customer Name, CNIC, Service ID, or Type..."
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+            placeholder="Search service, customer name, CNIC, ID..."
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
           />
         </div>
 
@@ -121,23 +121,23 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
           <select
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
             <option value="all">All Tax Years</option>
             <option value="2026">Tax Year 2026</option>
             <option value="2025">Tax Year 2025</option>
             <option value="2024">Tax Year 2024</option>
             <option value="2023">Tax Year 2023</option>
-            <option value="N/A">N/A (NTN / Consultation)</option>
+            <option value="N/A">N/A (NTN / Other)</option>
           </select>
 
           {/* Type Filter */}
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
-            <option value="all">All Service Types</option>
+            <option value="all">All Types</option>
             <option value="income_tax_return">Income Tax Return</option>
             <option value="ntn_registration">NTN Registration</option>
             <option value="ntn_modification">NTN Modification</option>
@@ -149,13 +149,13 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
           <select
             value={filingStatusFilter}
             onChange={(e) => setFilingStatusFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
             <option value="all">All Filing Statuses</option>
             <option value="inquiry">Inquiry</option>
-            <option value="documents_pending">Documents Pending</option>
+            <option value="documents_pending">Docs Pending</option>
             <option value="in_progress">In Progress</option>
-            <option value="review_required">Review Required</option>
+            <option value="review_required">Review</option>
             <option value="filed">Filed</option>
             <option value="completed">Completed</option>
           </select>
@@ -164,20 +164,132 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
           <select
             value={paymentStatusFilter}
             onChange={(e) => setPaymentStatusFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
             <option value="all">All Payment Statuses</option>
             <option value="unpaid">Unpaid</option>
             <option value="partially_paid">Partially Paid</option>
             <option value="paid">Paid</option>
             <option value="overpaid">Overpaid</option>
-            <option value="refunded">Refunded</option>
           </select>
         </div>
       </div>
 
-      {/* Services Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      {/* Mobile Services Card List (< lg screens) */}
+      <div className="lg:hidden space-y-3">
+        {filteredServices.map((srv) => {
+          const cust = customers.find((c) => c.id === srv.customerId);
+          const fin = calculateServiceFinancials(srv, payments, refunds);
+          const isSettled = fin.outstandingBalance <= 0;
+
+          return (
+            <div
+              key={srv.id}
+              className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-2.5"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-semibold text-white text-xs sm:text-sm truncate">
+                    {srv.serviceType === 'income_tax_return'
+                      ? 'Income Tax Return'
+                      : srv.serviceType === 'ntn_registration'
+                      ? 'NTN Registration'
+                      : srv.customServiceName || srv.serviceType.replace(/_/g, ' ')}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    Tax Year: <span className="text-emerald-400 font-bold">{srv.taxYear}</span> • ID: {srv.id}
+                  </div>
+                  {cust && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectCustomer(cust)}
+                      className="text-xs font-semibold text-slate-200 hover:text-emerald-400 text-left mt-1 truncate block"
+                    >
+                      {cust.fullName} <span className="text-[10px] text-slate-400 font-mono font-normal">({cust.cnic})</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
+                      srv.filingStatus === 'completed' || srv.filingStatus === 'filed'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : srv.filingStatus === 'in_progress'
+                        ? 'bg-blue-950 text-blue-400 border border-blue-800'
+                        : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {srv.filingStatus.replace(/_/g, ' ')}
+                  </span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
+                      isSettled
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : fin.paymentStatus === 'partially_paid'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-rose-950 text-rose-400 border border-rose-800'
+                    }`}
+                  >
+                    {fin.paymentStatus.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Financial Figures */}
+              <div className="grid grid-cols-3 gap-1.5 text-center text-xs bg-slate-950/80 p-2 rounded-lg border border-slate-800 font-mono">
+                <div>
+                  <div className="text-[9px] text-slate-400 font-sans">Payable Fee</div>
+                  <div className="text-slate-200 mt-0.5">{formatPKR(fin.finalPayable)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400 font-sans">Paid</div>
+                  <div className="text-emerald-400 font-semibold mt-0.5">{formatPKR(fin.netPaymentsApplied)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400 font-sans">Balance</div>
+                  <div className={`font-bold mt-0.5 ${fin.outstandingBalance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {formatPKR(fin.outstandingBalance)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Touch Actions */}
+              <div className="flex items-center gap-2 pt-1">
+                {fin.outstandingBalance > 0 && cust && (
+                  <button
+                    type="button"
+                    onClick={() => onReceivePayment(cust, srv)}
+                    className="flex-1 min-h-[40px] px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Receive Payment</span>
+                  </button>
+                )}
+                {cust && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectCustomer(cust)}
+                    className="min-h-[40px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 text-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
+                  >
+                    <ExternalLink className="w-4 h-4 text-emerald-400" />
+                    <span>View Customer</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredServices.length === 0 && (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400 text-xs">
+            No tax services matching your criteria.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Services Table (hidden on mobile, visible on lg screens) */}
+      <div className="hidden lg:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>

@@ -19,7 +19,8 @@ import {
   Mail,
   Calendar,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { Customer } from '../../types/customer';
 import { TaxService } from '../../types/service';
@@ -27,16 +28,21 @@ import { PaymentTransaction, RefundRecord } from '../../types/payment';
 import { calculateCustomerFinancials, calculateServiceFinancials, formatPKR } from '../../services/financial/ledger';
 import { initiatePhoneCall, initiateWhatsAppMessage } from '../../services/native/contact';
 import { formatLocalPhone } from '../../services/validation/phone';
+import { BusinessProfile } from '../../types/settings';
+import { sharePaymentOnWhatsApp } from '../../services/native/whatsappShare';
 
 interface CustomerProfileViewProps {
   customer: Customer;
   services: TaxService[];
   payments: PaymentTransaction[];
   refunds: RefundRecord[];
+  businessProfile: BusinessProfile;
   onBack: () => void;
   onEditCustomer: (customer: Customer) => void;
+  onDeleteCustomer: (customer: Customer) => void;
   onAddService: (customer: Customer) => void;
   onReceivePayment: (customer: Customer, service?: TaxService) => void;
+  onEditPayment: (payment: PaymentTransaction) => void;
   onViewPaymentHistory: (customer: Customer, service?: TaxService) => void;
   onPrintStatement: (customer: Customer) => void;
   onPrintReceipt: (payment: PaymentTransaction, service: TaxService) => void;
@@ -53,9 +59,12 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
   onAddService,
   onReceivePayment,
   onViewPaymentHistory,
+  businessProfile,
   onPrintStatement,
   onPrintReceipt,
-  onRefundReversal
+  onRefundReversal,
+  onDeleteCustomer,
+  onEditPayment
 }) => {
   const [activeTab, setActiveTab] = useState<'services' | 'payments' | 'documents' | 'details'>('services');
   const [selectedCnicView, setSelectedCnicView] = useState<'front' | 'back' | null>(null);
@@ -69,36 +78,44 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Back Button & Header Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs transition cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs transition cursor-pointer min-h-[40px]"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Customers</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <button
             onClick={() => onEditCustomer(customer)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer min-h-[40px]"
           >
             <Edit className="w-3.5 h-3.5" />
-            <span>Edit Profile</span>
+            <span>Edit</span>
           </button>
           <button
             onClick={() => onAddService(customer)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer min-h-[40px]"
           >
             <Plus className="w-3.5 h-3.5 text-blue-400" />
-            <span>Add Tax Service</span>
+            <span className="hidden xs:inline">Add</span> <span>Service</span>
           </button>
           <button
             onClick={() => onReceivePayment(customer)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs transition shadow-sm cursor-pointer min-h-[40px]"
           >
             <CreditCard className="w-3.5 h-3.5" />
-            <span>Receive Payment</span>
+            <span>Receive Pay</span>
+          </button>
+          <button
+            onClick={() => onDeleteCustomer(customer)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 active:bg-rose-800 text-rose-300 border border-rose-800/80 text-xs transition cursor-pointer min-h-[40px]"
+            title="Delete or Archive Customer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>Delete</span>
           </button>
         </div>
       </div>
@@ -146,10 +163,10 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
           </div>
 
           {/* Quick Contact Links */}
-          <div className="flex items-center gap-2 self-start md:self-center">
+          <div className="flex items-center gap-2 self-start md:self-center w-full md:w-auto">
             <button
               onClick={() => initiatePhoneCall(customer.primaryMobile)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer min-h-[40px]"
               title="Call primary phone"
             >
               <Phone className="w-3.5 h-3.5 text-emerald-400" />
@@ -158,11 +175,11 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
             <button
               onClick={() =>
                 initiateWhatsAppMessage(
-                  customer.whatsappNumber || customer.primaryMobile,
-                  `Assalam-o-Alaikum ${customer.fullName}, contacting from Al-Haq Tax Advisory.`
+                  (customer.whatsappNumber && !customer.whatsappNumber.includes('3001234567') ? customer.whatsappNumber : customer.primaryMobile),
+                  `Assalam-o-Alaikum ${customer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services.`
                 )
               }
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-xs transition cursor-pointer"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-xs transition cursor-pointer min-h-[40px]"
               title="Open WhatsApp Chat"
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -173,23 +190,23 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
       </div>
 
       {/* SECTION 5: CUSTOMER ACCOUNT FINANCIAL SUMMARY */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-emerald-400" />
             <span>Customer Financial Account Summary</span>
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => onPrintStatement(customer)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer min-h-[38px]"
             >
               <Receipt className="w-3.5 h-3.5 text-blue-400" />
-              <span>Print Account Statement</span>
+              <span>Account Statement</span>
             </button>
             <button
               onClick={() => onViewPaymentHistory(customer)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer min-h-[38px]"
             >
               <History className="w-3.5 h-3.5 text-emerald-400" />
               <span>Payment History</span>
@@ -198,47 +215,47 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
         </div>
 
         {/* Financial KPI Numbers */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-          <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-800">
-            <span className="text-slate-400 text-[11px]">Total Agreed Fees</span>
-            <div className="text-base font-bold text-white font-mono mt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 text-xs">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-slate-800/60 border border-slate-800">
+            <span className="text-slate-400 text-[10px] sm:text-[11px]">Total Agreed Fees</span>
+            <div className="text-sm sm:text-base font-bold text-white font-mono mt-1">
               {formatPKR(financials.totalServiceFees)}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-800">
-            <span className="text-slate-400 text-[11px]">Total Discounts</span>
-            <div className="text-base font-bold text-slate-400 font-mono mt-1">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-slate-800/60 border border-slate-800">
+            <span className="text-slate-400 text-[10px] sm:text-[11px]">Total Discounts</span>
+            <div className="text-sm sm:text-base font-bold text-slate-400 font-mono mt-1">
               {formatPKR(financials.totalDiscounts)}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-800">
-            <span className="text-slate-400 text-[11px]">Total Net Payable</span>
-            <div className="text-base font-bold text-slate-200 font-mono mt-1">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-slate-800/60 border border-slate-800">
+            <span className="text-slate-400 text-[10px] sm:text-[11px]">Total Net Payable</span>
+            <div className="text-sm sm:text-base font-bold text-slate-200 font-mono mt-1">
               {formatPKR(financials.totalPayable)}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-900/60">
-            <span className="text-emerald-400 text-[11px]">Total Payments Received</span>
-            <div className="text-base font-bold text-emerald-300 font-mono mt-1">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-emerald-950/40 border border-emerald-900/60">
+            <span className="text-emerald-400 text-[10px] sm:text-[11px]">Payments Received</span>
+            <div className="text-sm sm:text-base font-bold text-emerald-300 font-mono mt-1">
               {formatPKR(financials.totalPaid)}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-900/60">
-            <span className="text-amber-400 text-[11px]">Outstanding Balance</span>
-            <div className="text-base font-bold text-amber-300 font-mono mt-1">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-amber-950/40 border border-amber-900/60">
+            <span className="text-amber-400 text-[10px] sm:text-[11px]">Outstanding Balance</span>
+            <div className="text-sm sm:text-base font-bold text-amber-300 font-mono mt-1">
               {formatPKR(financials.totalOutstanding)}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-800">
-            <span className="text-slate-400 text-[11px]">Service Statuses</span>
-            <div className="text-[11px] font-semibold text-slate-300 mt-1 flex flex-col gap-0.5">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-slate-800/60 border border-slate-800">
+            <span className="text-slate-400 text-[10px] sm:text-[11px]">Service Statuses</span>
+            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-300 mt-1 flex flex-col gap-0.5">
               <span className="text-emerald-400">{financials.fullyPaidServicesCount} Fully Paid</span>
-              <span className="text-amber-400">{financials.partiallyPaidServicesCount} Partially Paid</span>
+              <span className="text-amber-400">{financials.partiallyPaidServicesCount} Partially</span>
               <span className="text-rose-400">{financials.unpaidServicesCount} Unpaid</span>
             </div>
           </div>
@@ -247,46 +264,149 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
 
       {/* Tabs: Tax Services & Multi-Year Ledger */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="flex border-b border-slate-800 bg-slate-950/60 px-4">
+        <div className="flex border-b border-slate-800 bg-slate-950/60 px-2 sm:px-4 overflow-x-auto no-scrollbar whitespace-nowrap">
           <button
             onClick={() => setActiveTab('services')}
-            className={`py-3 px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+            className={`py-3 px-3 sm:px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'services'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Tax Services & Filing Ledger ({customerServices.length})</span>
+            <span>Tax Services ({customerServices.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('payments')}
-            className={`py-3 px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+            className={`py-3 px-3 sm:px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'payments'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            <span>Payment Transactions ({customerPayments.length})</span>
+            <span>Payment History ({customerPayments.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`py-3 px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+            className={`py-3 px-3 sm:px-4 font-semibold text-xs border-b-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'documents'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>CNIC & Tax Documents</span>
+            <span>CNIC & Documents</span>
           </button>
         </div>
 
         {/* Tab 1: Tax Services List */}
         {activeTab === 'services' && (
-          <div className="p-4 space-y-4">
-            <div className="overflow-x-auto">
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            {/* Mobile Service Cards (< lg screens) */}
+            <div className="lg:hidden space-y-3">
+              {customerServices.map((service) => {
+                const fin = calculateServiceFinancials(service, payments, refunds);
+                const isFullyPaid = fin.paymentStatus === 'paid' || fin.paymentStatus === 'overpaid';
+
+                return (
+                  <div
+                    key={service.id}
+                    className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-white text-xs sm:text-sm truncate">
+                          {service.serviceType === 'income_tax_return'
+                            ? 'Income Tax Return'
+                            : service.serviceType === 'ntn_registration'
+                            ? 'NTN Registration'
+                            : service.serviceType === 'ntn_modification'
+                            ? 'NTN Modification'
+                            : service.customServiceName || service.serviceType}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          Tax Year: <span className="text-emerald-400 font-bold">{service.taxYear}</span> • ID: {service.id}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
+                            service.filingStatus === 'completed' || service.filingStatus === 'filed'
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                              : service.filingStatus === 'in_progress'
+                              ? 'bg-blue-950 text-blue-400 border border-blue-800'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          {service.filingStatus.replace(/_/g, ' ')}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
+                            isFullyPaid
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                              : fin.paymentStatus === 'partially_paid'
+                              ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                              : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          }`}
+                        >
+                          {fin.paymentStatus.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Financial Figures */}
+                    <div className="grid grid-cols-3 gap-1.5 text-center text-xs bg-slate-900/80 p-2 rounded-lg border border-slate-800 font-mono">
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">Agreed Fee</div>
+                        <div className="text-slate-200 mt-0.5 font-medium">{formatPKR(fin.agreedFee)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">Paid</div>
+                        <div className="text-emerald-400 font-semibold mt-0.5">{formatPKR(fin.netPaymentsApplied)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">Balance</div>
+                        <div className={`font-bold mt-0.5 ${fin.outstandingBalance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                          {formatPKR(fin.outstandingBalance)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Touch Actions */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {fin.outstandingBalance > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onReceivePayment(customer, service)}
+                          className="flex-1 min-h-[40px] px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Receive Payment</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onViewPaymentHistory(customer, service)}
+                        className="min-h-[40px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 text-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
+                      >
+                        <History className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>History</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {customerServices.length === 0 && (
+                <div className="py-8 text-center text-slate-400 text-xs bg-slate-950/60 rounded-xl border border-slate-800">
+                  No tax services recorded for this client. Click "Add Service" above.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table (hidden on mobile, visible on lg screens) */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
@@ -413,8 +533,110 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
 
         {/* Tab 2: Payment History */}
         {activeTab === 'payments' && (
-          <div className="p-4 space-y-3">
-            <div className="overflow-x-auto">
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            {/* Mobile Payment Cards (< lg screens) */}
+            <div className="lg:hidden space-y-3">
+              {customerPayments.map((p) => {
+                const srv = customerServices.find((s) => s.id === p.serviceId);
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
+                          <span>Receipt:</span>
+                          <span className="text-emerald-400">{p.receiptNumber}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {srv ? srv.serviceType.replace(/_/g, ' ') : p.serviceId} ({p.taxYear})
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold font-mono text-emerald-400">
+                          {formatPKR(p.amount)}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {p.paymentDate.slice(0, 10)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                      <span className="text-slate-300">Method: <strong className="text-white">{p.paymentMethod}</strong></span>
+                      <span className="text-slate-400">By: {p.receivedBy}</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${
+                          p.status === 'valid'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : 'bg-rose-950 text-rose-400 border border-rose-800'
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1.5 pt-1 flex-wrap">
+                      {srv && (
+                        <button
+                          type="button"
+                          onClick={() => sharePaymentOnWhatsApp({
+                            payment: p,
+                            service: srv,
+                            customer,
+                            businessProfile
+                          })}
+                          className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 active:bg-emerald-800 text-emerald-300 border border-emerald-800 text-xs flex items-center justify-center gap-1 cursor-pointer transition"
+                          title="Share on WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>WhatsApp</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onEditPayment(p)}
+                        className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 text-xs flex items-center justify-center gap-1 cursor-pointer transition"
+                        title="Edit Payment"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Edit</span>
+                      </button>
+                      {srv && (
+                        <button
+                          type="button"
+                          onClick={() => onPrintReceipt(p, srv)}
+                          className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 text-xs flex items-center justify-center gap-1 cursor-pointer transition"
+                        >
+                          <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Receipt</span>
+                        </button>
+                      )}
+                      {p.status === 'valid' && srv && (
+                        <button
+                          type="button"
+                          onClick={() => onRefundReversal(p, srv)}
+                          className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700 text-xs flex items-center justify-center gap-1 cursor-pointer transition"
+                          title="Refund"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Refund</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {customerPayments.length === 0 && (
+                <div className="py-8 text-center text-slate-400 text-xs bg-slate-950/60 rounded-xl border border-slate-800">
+                  No payments recorded yet for this client.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table (hidden on mobile, visible on lg screens) */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
@@ -472,17 +694,40 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => srv && onPrintReceipt(p, srv)}
-                              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] flex items-center gap-1 cursor-pointer transition"
-                              title="Print / Export Receipt"
-                            >
-                              <Receipt className="w-3 h-3 text-emerald-400" />
-                              <span>Receipt</span>
-                            </button>
-                            {p.status === 'valid' && (
+                            {srv && (
                               <button
-                                onClick={() => srv && onRefundReversal(p, srv)}
+                                onClick={() => sharePaymentOnWhatsApp({
+                                  payment: p,
+                                  service: srv,
+                                  customer,
+                                  businessProfile
+                                })}
+                                className="p-1 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 cursor-pointer transition"
+                                title="Share Receipt on WhatsApp"
+                              >
+                                <MessageSquare className="w-3 h-3 text-emerald-400" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onEditPayment(p)}
+                              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition"
+                              title="Edit Payment Record"
+                            >
+                              <Edit className="w-3 h-3 text-blue-400" />
+                            </button>
+                            {srv && (
+                              <button
+                                onClick={() => srv && onPrintReceipt(p, srv)}
+                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                title="Print / Export Receipt"
+                              >
+                                <Receipt className="w-3 h-3 text-emerald-400" />
+                                <span>Receipt</span>
+                              </button>
+                            )}
+                            {p.status === 'valid' && srv && (
+                              <button
+                                onClick={() => onRefundReversal(p, srv)}
                                 className="p-1 rounded bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700 cursor-pointer transition"
                                 title="Issue Controlled Refund / Reversal"
                               >

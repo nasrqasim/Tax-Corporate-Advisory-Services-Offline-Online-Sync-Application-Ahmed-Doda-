@@ -8,7 +8,8 @@ import {
   CheckCircle,
   Phone,
   MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { Customer } from '../../types/customer';
 import { validateCnic, formatCnic } from '../../services/validation/cnic';
@@ -52,10 +53,24 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sameAsPrimaryMobile, setSameAsPrimaryMobile] = useState(true);
 
   useEffect(() => {
     if (customerToEdit) {
-      setFormData({ ...customerToEdit });
+      const isWaSame = !customerToEdit.whatsappNumber ||
+        customerToEdit.whatsappNumber === customerToEdit.primaryMobile ||
+        customerToEdit.whatsappNumber.includes('3001234567') ||
+        formatLocalPhone(customerToEdit.whatsappNumber) === formatLocalPhone(customerToEdit.primaryMobile || '');
+      setSameAsPrimaryMobile(isWaSame);
+      setFormData({
+        ...customerToEdit,
+        cnic: formatCnic(customerToEdit.cnic),
+        primaryMobile: customerToEdit.primaryMobile ? formatLocalPhone(customerToEdit.primaryMobile) : '',
+        secondaryMobile: customerToEdit.secondaryMobile ? formatLocalPhone(customerToEdit.secondaryMobile) : '',
+        whatsappNumber: isWaSame
+          ? (customerToEdit.primaryMobile ? formatLocalPhone(customerToEdit.primaryMobile) : '')
+          : (customerToEdit.whatsappNumber ? formatLocalPhone(customerToEdit.whatsappNumber) : '')
+      });
     } else {
       setFormData({
         fullName: '',
@@ -121,8 +136,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
     setFormData((prev) => ({
       ...prev,
       primaryMobile: val,
-      // Default WhatsApp to primary mobile if not already customized
-      whatsappNumber: prev.whatsappNumber ? prev.whatsappNumber : val
+      whatsappNumber: sameAsPrimaryMobile ? val : prev.whatsappNumber
     }));
   };
 
@@ -144,8 +158,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const handleSubmit = async (bypassDuplicateCheck = false) => {
     if (!validateForm()) return;
 
-    // Check for duplicates
-    if (!bypassDuplicateCheck) {
+    // Check for duplicates (only for new customers or if CNIC changed)
+    if (!bypassDuplicateCheck && (!isEditing || (customerToEdit && formatCnic(customerToEdit.cnic) !== formatCnic(formData.cnic || '')))) {
       const dupCheck = checkForDuplicateCustomer(existingCustomers, {
         id: customerToEdit?.id,
         fullName: formData.fullName || '',
@@ -173,7 +187,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
         cnic: formData.cnic!.trim(),
         primaryMobile: formData.primaryMobile!.trim(),
         secondaryMobile: formData.secondaryMobile?.trim() || undefined,
-        whatsappNumber: (formData.whatsappNumber || formData.primaryMobile)!.trim(),
+        whatsappNumber: (sameAsPrimaryMobile || !formData.whatsappNumber?.trim() || formData.whatsappNumber.includes('3001234567') ? formData.primaryMobile! : formData.whatsappNumber!).trim(),
         address: formData.address?.trim() || '',
         email: formData.email?.trim() || undefined,
         ntnNumber: formData.ntnNumber?.trim() || undefined,
@@ -197,19 +211,19 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
         {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-base text-white">
+            <h3 className="font-bold text-sm sm:text-base text-white">
               {isEditing ? `Edit Customer: ${customerToEdit?.fullName}` : 'Add New Tax Customer'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
             <X className="w-4 h-4" />
           </button>
@@ -257,6 +271,21 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
 
         {/* Modal Body Form */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs">
+          {/* Validation Errors Summary Banner */}
+          {Object.keys(errors).length > 0 && (
+            <div className="p-3 rounded-lg bg-rose-950/90 border border-rose-800 text-rose-200 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-rose-300">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Please fix the following validation errors:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-200 pl-1">
+                {Object.entries(errors).map(([field, msg]) => (
+                  <li key={field}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Full Name */}
             <div>
@@ -294,11 +323,12 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               </label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={formData.cnic}
                 onChange={(e) => handleCnicChange(e.target.value)}
                 maxLength={15}
                 placeholder="35202-1234567-1"
-                className={`w-full bg-slate-800 border font-mono rounded-lg px-3 py-2 text-white focus:outline-none ${
+                className={`w-full bg-slate-800 border font-mono rounded-lg px-3 py-2 text-white focus:outline-none text-xs sm:text-sm ${
                   errors.cnic ? 'border-rose-500' : 'border-slate-700 focus:border-emerald-500'
                 }`}
               />
@@ -315,7 +345,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
                 value={formData.ntnNumber}
                 onChange={(e) => setFormData({ ...formData, ntnNumber: e.target.value })}
                 placeholder="e.g. 7392814-2"
-                className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none text-xs sm:text-sm focus:border-emerald-500"
               />
             </div>
 
@@ -326,10 +356,11 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               </label>
               <input
                 type="text"
+                inputMode="tel"
                 value={formData.primaryMobile}
                 onChange={(e) => handlePrimaryMobileChange(e.target.value)}
                 placeholder="03001234567"
-                className={`w-full bg-slate-800 border font-mono rounded-lg px-3 py-2 text-white focus:outline-none ${
+                className={`w-full bg-slate-800 border font-mono rounded-lg px-3 py-2 text-white focus:outline-none text-xs sm:text-sm ${
                   errors.primaryMobile ? 'border-rose-500' : 'border-slate-700 focus:border-emerald-500'
                 }`}
               />
@@ -345,22 +376,44 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               </label>
               <input
                 type="text"
+                inputMode="tel"
                 value={formData.secondaryMobile}
                 onChange={(e) => setFormData({ ...formData, secondaryMobile: e.target.value })}
                 placeholder="03219876543"
-                className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none text-xs sm:text-sm focus:border-emerald-500"
               />
             </div>
 
             {/* WhatsApp Number */}
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">WhatsApp Number</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-slate-300 font-semibold">WhatsApp Number</label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-emerald-400 select-none">
+                  <input
+                    type="checkbox"
+                    checked={sameAsPrimaryMobile}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSameAsPrimaryMobile(checked);
+                      if (checked) {
+                        setFormData((prev) => ({ ...prev, whatsappNumber: prev.primaryMobile || '' }));
+                      }
+                    }}
+                    className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <span>Same as Mobile</span>
+                </label>
+              </div>
               <input
                 type="text"
-                value={formData.whatsappNumber}
+                inputMode="tel"
+                disabled={sameAsPrimaryMobile}
+                value={sameAsPrimaryMobile ? (formData.primaryMobile || '') : (formData.whatsappNumber || '')}
                 onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
                 placeholder="03001234567"
-                className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className={`w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none text-xs sm:text-sm focus:border-emerald-500 ${
+                  sameAsPrimaryMobile ? 'opacity-70 cursor-not-allowed bg-slate-800/60' : ''
+                }`}
               />
             </div>
 
@@ -495,11 +548,11 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-end gap-2">
+        <div className="px-4 sm:px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+            className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer flex items-center justify-center"
           >
             Cancel
           </button>
@@ -507,7 +560,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             type="button"
             onClick={() => handleSubmit(false)}
             disabled={isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition shadow-sm cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial min-h-[44px] flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Customer'}</span>

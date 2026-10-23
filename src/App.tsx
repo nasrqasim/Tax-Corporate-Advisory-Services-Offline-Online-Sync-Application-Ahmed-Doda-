@@ -1,26 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { dbService } from './services/sqlite/db';
+import { authService } from './services/auth/authService';
 import { Customer } from './types/customer';
 import { TaxService } from './types/service';
 import { PaymentTransaction, RefundRecord } from './types/payment';
-import { BusinessProfile, FollowUpReminder, UserRole } from './types/settings';
+import { BusinessProfile, FollowUpReminder, UserRole, AppUser } from './types/settings';
 import { SyncStats } from './types/sync';
 import { outboxManager } from './services/sync/outbox';
 
 // UI Layout Components
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
+import { MobileBottomNav } from './components/layout/MobileBottomNav';
+import { MobileDrawer } from './components/layout/MobileDrawer';
 
-// View Modules
+// Public & Auth Views
+import { PublicHomePage } from './components/public/PublicHomePage';
+import { LoginPage } from './components/auth/LoginPage';
+
+// CRM View Modules
 import { DashboardView } from './components/dashboard/DashboardView';
 import { CustomerListView } from './components/customers/CustomerListView';
 import { CustomerProfileView } from './components/customers/CustomerProfileView';
 import { AddEditCustomerModal } from './components/customers/AddEditCustomerModal';
+import { DeleteCustomerModal } from './components/customers/DeleteCustomerModal';
 import { DedicatedCustomerSearch } from './components/search/DedicatedCustomerSearch';
 import { TaxServicesListView } from './components/services/TaxServicesListView';
 import { AddServiceModal } from './components/services/AddServiceModal';
 import { ReceivePaymentModal } from './components/payments/ReceivePaymentModal';
 import { PaymentHistoryView } from './components/payments/PaymentHistoryView';
+import { EditPaymentModal } from './components/payments/EditPaymentModal';
 import { RefundReversalModal } from './components/payments/RefundReversalModal';
 import { PrintableReceiptModal } from './components/receipts/PrintableReceiptModal';
 import { CustomerStatementModal } from './components/receipts/CustomerStatementModal';
@@ -32,7 +41,9 @@ import { SettingsView } from './components/settings/SettingsView';
 export function App() {
   const [isDbLoaded, setIsDbLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [currentRole, setCurrentRole] = useState<UserRole>('admin');
+  const [currentRole, setCurrentRole] = useState<UserRole>('super_admin');
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [viewMode, setViewMode] = useState<'app' | 'public' | 'login'>('public');
 
   // Database Data States
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -41,11 +52,13 @@ export function App() {
   const [refunds, setRefunds] = useState<RefundRecord[]>([]);
   const [followUps, setFollowUps] = useState<FollowUpReminder[]>([]);
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
-    officeName: 'Al-Haq Tax & Corporate Advisory Services',
+    officeName: 'Ahmed Doda Tax & Corporate Advisory Services',
     ntn: '7392814-2',
-    primaryPhone: '+923001234567',
-    address: 'Suite #402, 4th Floor, Executive Heights, Blue Area',
-    city: 'Islamabad',
+    primaryPhone: '03152914836',
+    email: 'ahmeddodataxcrm@gmail.com',
+    developerCredit: 'Software by Roonjha Developers: 03152914836',
+    address: 'Winder, Hub, Balochistan, Pakistan',
+    city: 'Hub / Winder',
     currencySymbol: 'Rs. ',
     allowOverpayments: false,
     enableEncryption: true,
@@ -63,8 +76,11 @@ export function App() {
   // Modal & Selection States
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isAddEditCustomerOpen, setIsAddEditCustomerOpen] = useState(false);
+  const [isDeleteCustomerOpen, setIsDeleteCustomerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
   const [addServiceCustomer, setAddServiceCustomer] = useState<Customer | null>(null);
@@ -72,6 +88,9 @@ export function App() {
   const [isReceivePaymentOpen, setIsReceivePaymentOpen] = useState(false);
   const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
   const [paymentService, setPaymentService] = useState<TaxService | null>(null);
+
+  const [isEditPaymentOpen, setIsEditPaymentOpen] = useState(false);
+  const [paymentToEdit, setPaymentToEdit] = useState<PaymentTransaction | null>(null);
 
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [refundTxn, setRefundTxn] = useState<PaymentTransaction | null>(null);
@@ -102,18 +121,26 @@ export function App() {
     setPayments(pList);
     setRefunds(rList);
     setFollowUps(fList);
-    setBusinessProfile(bProfile);
+    if (bProfile) setBusinessProfile(bProfile);
     setSyncStats(sStats);
     setIsDbLoaded(true);
 
     // Keep selected customer synchronized if view is open
-    if (selectedCustomer) {
-      const refreshed = cList.find((c) => c.id === selectedCustomer.id);
-      if (refreshed) setSelectedCustomer(refreshed);
-    }
-  }, [selectedCustomer?.id]);
+    setSelectedCustomer((prev) => {
+      if (!prev) return null;
+      const refreshed = cList.find((c) => c.id === prev.id);
+      return refreshed ? { ...refreshed } : prev;
+    });
+  }, []);
 
   useEffect(() => {
+    // Check initial auth session
+    const existingUser = authService.getCurrentUser();
+    if (existingUser) {
+      setCurrentUser(existingUser);
+      setCurrentRole(existingUser.role);
+      setViewMode('app');
+    }
     reloadData();
   }, []);
 
@@ -131,8 +158,34 @@ export function App() {
 
   // Customer Actions
   const handleSaveCustomer = async (cust: Customer) => {
-    await dbService.saveCustomer(cust, currentRole);
+    try {
+      const saved = await dbService.saveCustomer(cust, currentRole);
+      setCustomers((prev) => {
+        const idx = prev.findIndex((c) => c.id === saved.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...prev];
+      });
+      setSelectedCustomer((prev) => (prev && prev.id === saved.id ? { ...saved } : prev));
+      setCustomerToEdit(null);
+      setIsAddEditCustomerOpen(false);
+      await reloadData();
+    } catch (e: any) {
+      alert(`Failed to save customer: ${e.message}`);
+    }
+  };
+
+  const handleDeleteCustomerConfirm = async (customerId: string, reason: string) => {
+    const res = await dbService.deleteCustomer(customerId, reason);
     await reloadData();
+    if (selectedCustomer?.id === customerId) {
+      setSelectedCustomer(null);
+    }
+    setIsDeleteCustomerOpen(false);
+    setCustomerToDelete(null);
   };
 
   // Tax Service Actions
@@ -148,6 +201,24 @@ export function App() {
     const txn = await dbService.recordPayment(paymentData, currentRole);
     await reloadData();
     return txn;
+  };
+
+  const handleSavePaymentEdit = async (
+    paymentId: string,
+    updates: Partial<PaymentTransaction>,
+    reason: string
+  ) => {
+    await dbService.updatePayment(paymentId, updates, reason);
+    await reloadData();
+    setIsEditPaymentOpen(false);
+    setPaymentToEdit(null);
+  };
+
+  const handleDeleteOrReversePayment = async (paymentId: string, reason: string) => {
+    await dbService.deleteOrReversePayment(paymentId, reason);
+    await reloadData();
+    setIsEditPaymentOpen(false);
+    setPaymentToEdit(null);
   };
 
   // Refund Actions
@@ -184,6 +255,38 @@ export function App() {
     );
   }
 
+  // 1. PUBLIC LANDING PAGE
+  if (viewMode === 'public') {
+    return (
+      <PublicHomePage
+        onGoToLogin={() => setViewMode('login')}
+        officeName={businessProfile.officeName}
+        ntn={businessProfile.ntn || '7392814-2'}
+        address={businessProfile.address}
+        email={businessProfile.email || 'ahmeddodataxcrm@gmail.com'}
+        phone={businessProfile.primaryPhone}
+      />
+    );
+  }
+
+  // 2. AUTHENTICATION / LOGIN PAGE
+  if (viewMode === 'login') {
+    return (
+      <LoginPage
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setCurrentRole(user.role);
+          setViewMode('app');
+        }}
+        onBackToHome={() => setViewMode('public')}
+        officeName={businessProfile.officeName}
+        ntn={businessProfile.ntn || '7392814-2'}
+        address={businessProfile.address}
+      />
+    );
+  }
+
+  // 3. MAIN CRM & FINANCIAL APPLICATION
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden">
       {/* Top Navigation Bar */}
@@ -191,8 +294,16 @@ export function App() {
         currentRole={currentRole}
         onRoleChange={setCurrentRole}
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
         officeName={businessProfile.officeName}
-        ntn={businessProfile.ntn}
+        ntn={businessProfile.ntn || '7392814-2'}
+        currentUserEmail={currentUser?.email}
+        onLogout={() => {
+          authService.logout();
+          setCurrentUser(null);
+          setViewMode('public');
+        }}
+        onViewLandingPage={() => setViewMode('public')}
       />
 
       {/* Main Container: Sidebar + Content */}
@@ -219,223 +330,257 @@ export function App() {
         />
 
         {/* Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950">
-          {selectedCustomer ? (
-            <CustomerProfileView
-              customer={selectedCustomer}
-              services={services}
-              payments={payments}
-              refunds={refunds}
-              onBack={() => setSelectedCustomer(null)}
-              onEditCustomer={(c) => {
-                setCustomerToEdit(c);
-                setIsAddEditCustomerOpen(true);
-              }}
-              onAddService={(c) => {
-                setAddServiceCustomer(c);
-                setIsAddServiceOpen(true);
-              }}
-              onReceivePayment={(c, s) => {
-                setPaymentCustomer(c);
-                setPaymentService(s || null);
-                setIsReceivePaymentOpen(true);
-              }}
-              onViewPaymentHistory={(c, s) => {
-                setActiveTab('payment_history');
-                setSelectedCustomer(null);
-              }}
-              onPrintStatement={(c) => {
-                setStatementCustomer(c);
-                setIsStatementOpen(true);
-              }}
-              onPrintReceipt={(txn, srv) => {
-                setReceiptTxn(txn);
-                setReceiptService(srv);
-                setIsPrintReceiptOpen(true);
-              }}
-              onRefundReversal={(txn, srv) => {
-                setRefundTxn(txn);
-                setRefundService(srv);
-                setIsRefundModalOpen(true);
-              }}
-            />
-          ) : (
-            <>
-              {activeTab === 'dashboard' && (
-                <DashboardView
-                  customers={customers}
-                  services={services}
-                  payments={payments}
-                  refunds={refunds}
-                  followUps={followUps}
-                  syncStats={syncStats}
-                  onNavigate={(tab) => setActiveTab(tab)}
-                  onReceivePayment={(c, s) => {
-                    setPaymentCustomer(c || null);
-                    setPaymentService(s || null);
-                    setIsReceivePaymentOpen(true);
-                  }}
-                />
-              )}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 pb-24 lg:pb-6 bg-slate-950 flex flex-col justify-between">
+          <div className="flex-1">
+            {selectedCustomer ? (
+              <CustomerProfileView
+                customer={selectedCustomer}
+                services={services}
+                payments={payments}
+                refunds={refunds}
+                businessProfile={businessProfile}
+                onBack={() => setSelectedCustomer(null)}
+                onEditCustomer={(c) => {
+                  setCustomerToEdit(c);
+                  setIsAddEditCustomerOpen(true);
+                }}
+                onDeleteCustomer={(c) => {
+                  setCustomerToDelete(c);
+                  setIsDeleteCustomerOpen(true);
+                }}
+                onAddService={(c) => {
+                  setAddServiceCustomer(c);
+                  setIsAddServiceOpen(true);
+                }}
+                onReceivePayment={(c, s) => {
+                  setPaymentCustomer(c);
+                  setPaymentService(s || null);
+                  setIsReceivePaymentOpen(true);
+                }}
+                onEditPayment={(p) => {
+                  setPaymentToEdit(p);
+                  setIsEditPaymentOpen(true);
+                }}
+                onViewPaymentHistory={(c, s) => {
+                  setActiveTab('payment_history');
+                  setSelectedCustomer(null);
+                }}
+                onPrintStatement={(c) => {
+                  setStatementCustomer(c);
+                  setIsStatementOpen(true);
+                }}
+                onPrintReceipt={(txn, srv) => {
+                  setReceiptTxn(txn);
+                  setReceiptService(srv);
+                  setIsPrintReceiptOpen(true);
+                }}
+                onRefundReversal={(txn, srv) => {
+                  setRefundTxn(txn);
+                  setRefundService(srv);
+                  setIsRefundModalOpen(true);
+                }}
+              />
+            ) : (
+              <>
+                {activeTab === 'dashboard' && (
+                  <DashboardView
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    refunds={refunds}
+                    followUps={followUps}
+                    syncStats={syncStats}
+                    onNavigate={(tab) => setActiveTab(tab)}
+                    onReceivePayment={(c, s) => {
+                      setPaymentCustomer(c || null);
+                      setPaymentService(s || null);
+                      setIsReceivePaymentOpen(true);
+                    }}
+                  />
+                )}
 
-              {activeTab === 'customers' && (
-                <CustomerListView
-                  customers={customers}
-                  services={services}
-                  payments={payments}
-                  refunds={refunds}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                  onAddCustomer={() => {
-                    setCustomerToEdit(null);
-                    setIsAddEditCustomerOpen(true);
-                  }}
-                  onReceivePayment={(c) => {
-                    setPaymentCustomer(c);
-                    setPaymentService(null);
-                    setIsReceivePaymentOpen(true);
-                  }}
-                  onAddService={(c) => {
-                    setAddServiceCustomer(c);
-                    setIsAddServiceOpen(true);
-                  }}
-                />
-              )}
+                {activeTab === 'customers' && (
+                  <CustomerListView
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    refunds={refunds}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                    onAddCustomer={() => {
+                      setCustomerToEdit(null);
+                      setIsAddEditCustomerOpen(true);
+                    }}
+                    onEditCustomer={(c) => {
+                      setCustomerToEdit(c);
+                      setIsAddEditCustomerOpen(true);
+                    }}
+                    onDeleteCustomer={(c) => {
+                      setCustomerToDelete(c);
+                      setIsDeleteCustomerOpen(true);
+                    }}
+                    onReceivePayment={(c) => {
+                      setPaymentCustomer(c);
+                      setPaymentService(null);
+                      setIsReceivePaymentOpen(true);
+                    }}
+                    onAddService={(c) => {
+                      setAddServiceCustomer(c);
+                      setIsAddServiceOpen(true);
+                    }}
+                  />
+                )}
 
-              {activeTab === 'search' && (
-                <DedicatedCustomerSearch
-                  customers={customers}
-                  services={services}
-                  payments={payments}
-                  refunds={refunds}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                  onReceivePayment={(c, s) => {
-                    setPaymentCustomer(c);
-                    setPaymentService(s || null);
-                    setIsReceivePaymentOpen(true);
-                  }}
-                />
-              )}
+                {activeTab === 'search' && (
+                  <DedicatedCustomerSearch
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    refunds={refunds}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                    onReceivePayment={(c, s) => {
+                      setPaymentCustomer(c);
+                      setPaymentService(s || null);
+                      setIsReceivePaymentOpen(true);
+                    }}
+                  />
+                )}
 
-              {activeTab === 'services' && (
-                <TaxServicesListView
-                  services={services}
-                  customers={customers}
-                  payments={payments}
-                  refunds={refunds}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                  onAddService={(c) => {
-                    setAddServiceCustomer(c || null);
-                    setIsAddServiceOpen(true);
-                  }}
-                  onReceivePayment={(c, s) => {
-                    setPaymentCustomer(c);
-                    setPaymentService(s);
-                    setIsReceivePaymentOpen(true);
-                  }}
-                />
-              )}
+                {activeTab === 'services' && (
+                  <TaxServicesListView
+                    services={services}
+                    customers={customers}
+                    payments={payments}
+                    refunds={refunds}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                    onAddService={(c) => {
+                      setAddServiceCustomer(c || null);
+                      setIsAddServiceOpen(true);
+                    }}
+                    onReceivePayment={(c, s) => {
+                      setPaymentCustomer(c);
+                      setPaymentService(s);
+                      setIsReceivePaymentOpen(true);
+                    }}
+                  />
+                )}
 
-              {activeTab === 'payment_history' && (
-                <PaymentHistoryView
-                  payments={payments}
-                  refunds={refunds}
-                  services={services}
-                  customers={customers}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                  onPrintReceipt={(txn, srv) => {
-                    setReceiptTxn(txn);
-                    setReceiptService(srv);
-                    setIsPrintReceiptOpen(true);
-                  }}
-                  onRefundReversal={(txn, srv) => {
-                    setRefundTxn(txn);
-                    setRefundService(srv);
-                    setIsRefundModalOpen(true);
-                  }}
-                />
-              )}
+                {activeTab === 'payment_history' && (
+                  <PaymentHistoryView
+                    payments={payments}
+                    refunds={refunds}
+                    services={services}
+                    customers={customers}
+                    businessProfile={businessProfile}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                    onEditPayment={(p) => {
+                      setPaymentToEdit(p);
+                      setIsEditPaymentOpen(true);
+                    }}
+                    onPrintReceipt={(txn, srv) => {
+                      setReceiptTxn(txn);
+                      setReceiptService(srv);
+                      setIsPrintReceiptOpen(true);
+                    }}
+                    onRefundReversal={(txn, srv) => {
+                      setRefundTxn(txn);
+                      setRefundService(srv);
+                      setIsRefundModalOpen(true);
+                    }}
+                  />
+                )}
 
-              {activeTab === 'receipts_statements' && (
-                <div className="space-y-4">
-                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                    <h2 className="text-lg font-bold text-white">Receipts & Customer Account Statements</h2>
-                    <p className="text-xs text-slate-400">
-                      Select a customer to generate their comprehensive financial statement or reprint receipts.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {customers.map((c) => (
-                      <div
-                        key={c.id}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="font-bold text-white text-sm">{c.fullName}</div>
-                          <div className="text-xs text-slate-400 font-mono mt-0.5">{c.cnic}</div>
-                          <div className="text-xs text-emerald-400 font-mono">ID: {c.id}</div>
+                {activeTab === 'receipts_statements' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                      <h2 className="text-lg font-bold text-white">Receipts & Customer Account Statements</h2>
+                      <p className="text-xs text-slate-400">
+                        Select a customer to generate their comprehensive financial statement or reprint receipts.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {customers.map((c) => (
+                        <div
+                          key={c.id}
+                          className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="font-bold text-white text-sm">{c.fullName}</div>
+                            <div className="text-xs text-slate-400 font-mono mt-0.5">{c.cnic}</div>
+                            <div className="text-xs text-emerald-400 font-mono">ID: {c.id}</div>
+                          </div>
+                          <div className="flex gap-2 mt-4 pt-3 border-t border-slate-800">
+                            <button
+                              onClick={() => {
+                                setStatementCustomer(c);
+                                setIsStatementOpen(true);
+                              }}
+                              className="flex-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium cursor-pointer text-center"
+                            >
+                              Statement
+                            </button>
+                            <button
+                              onClick={() => setSelectedCustomer(c)}
+                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs cursor-pointer"
+                            >
+                              Profile
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-800">
-                          <button
-                            onClick={() => {
-                              setStatementCustomer(c);
-                              setIsStatementOpen(true);
-                            }}
-                            className="flex-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium cursor-pointer text-center"
-                          >
-                            Statement
-                          </button>
-                          <button
-                            onClick={() => setSelectedCustomer(c)}
-                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs cursor-pointer"
-                          >
-                            Profile
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {activeTab === 'followups' && (
-                <FollowupsView
-                  followUps={followUps}
-                  customers={customers}
-                  onSaveFollowUp={handleSaveFollowUp}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                />
-              )}
+                {activeTab === 'followups' && (
+                  <FollowupsView
+                    followUps={followUps}
+                    customers={customers}
+                    onSaveFollowUp={handleSaveFollowUp}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                  />
+                )}
 
-              {activeTab === 'reports' && (
-                <FinancialReportsView
-                  customers={customers}
-                  services={services}
-                  payments={payments}
-                  refunds={refunds}
-                  businessProfile={businessProfile}
-                  onSelectCustomer={(c) => setSelectedCustomer(c)}
-                />
-              )}
+                {activeTab === 'reports' && (
+                  <FinancialReportsView
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    refunds={refunds}
+                    businessProfile={businessProfile}
+                    onSelectCustomer={(c) => setSelectedCustomer(c)}
+                  />
+                )}
 
-              {activeTab === 'sync' && <SyncOutboxView />}
+                {activeTab === 'sync' && <SyncOutboxView />}
 
-              {activeTab === 'backup' && (
-                <SettingsView
-                  businessProfile={businessProfile}
-                  onSaveProfile={handleSaveProfile}
-                  onReloadDatabase={reloadData}
-                />
-              )}
+                {activeTab === 'backup' && (
+                  <SettingsView
+                    businessProfile={businessProfile}
+                    onSaveProfile={handleSaveProfile}
+                    onReloadDatabase={reloadData}
+                  />
+                )}
 
-              {activeTab === 'settings' && (
-                <SettingsView
-                  businessProfile={businessProfile}
-                  onSaveProfile={handleSaveProfile}
-                  onReloadDatabase={reloadData}
-                />
-              )}
-            </>
-          )}
+                {activeTab === 'settings' && (
+                  <SettingsView
+                    businessProfile={businessProfile}
+                    onSaveProfile={handleSaveProfile}
+                    onReloadDatabase={reloadData}
+                  />
+                )}
+              </>
+            )}
+          </div>
+
+          {/* CRM App Persistent Footer with Developer Credit */}
+          <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center text-xs text-slate-400 no-print space-y-1">
+            <div className="font-semibold text-slate-300">
+              {businessProfile.developerCredit || 'Software by Roonjha Developers: 03152914836'}
+            </div>
+            <div className="text-[10px] text-slate-500">
+              {businessProfile.officeName} • NTN: {businessProfile.ntn} • {businessProfile.address}
+            </div>
+          </footer>
         </main>
       </div>
 
@@ -444,10 +589,27 @@ export function App() {
       {/* Add / Edit Customer Modal */}
       <AddEditCustomerModal
         isOpen={isAddEditCustomerOpen}
-        onClose={() => setIsAddEditCustomerOpen(false)}
+        onClose={() => {
+          setIsAddEditCustomerOpen(false);
+          setCustomerToEdit(null);
+        }}
         onSave={handleSaveCustomer}
         existingCustomers={customers}
         customerToEdit={customerToEdit}
+      />
+
+      {/* Delete / Archive Customer Modal with Accounting Integrity */}
+      <DeleteCustomerModal
+        isOpen={isDeleteCustomerOpen}
+        onClose={() => {
+          setIsDeleteCustomerOpen(false);
+          setCustomerToDelete(null);
+        }}
+        customer={customerToDelete}
+        services={services.filter((s) => s.customerId === customerToDelete?.id)}
+        payments={payments.filter((p) => p.customerId === customerToDelete?.id)}
+        onConfirmDelete={handleDeleteCustomerConfirm}
+        onConfirmArchive={handleDeleteCustomerConfirm}
       />
 
       {/* Add Tax Service Modal */}
@@ -474,6 +636,20 @@ export function App() {
           setReceiptService(srv);
           setIsPrintReceiptOpen(true);
         }}
+      />
+
+      {/* Edit Payment Modal with Audit Log & Reversal */}
+      <EditPaymentModal
+        isOpen={isEditPaymentOpen}
+        onClose={() => {
+          setIsEditPaymentOpen(false);
+          setPaymentToEdit(null);
+        }}
+        transaction={paymentToEdit}
+        service={services.find((s) => s.id === paymentToEdit?.serviceId) || null}
+        customer={customers.find((c) => c.id === paymentToEdit?.customerId) || null}
+        onSaveUpdate={handleSavePaymentEdit}
+        onDeleteOrReverse={handleDeleteOrReversePayment}
       />
 
       {/* Printable Receipt Modal */}
@@ -533,6 +709,56 @@ export function App() {
           </div>
         </div>
       )}
+
+      {/* Mobile Navigation Drawer for Secondary Modules & Role Switching */}
+      <MobileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        activeTab={selectedCustomer ? 'customers' : activeTab}
+        onSelectTab={(tab) => {
+          setSelectedCustomer(null);
+          if (tab === 'add_customer') {
+            setCustomerToEdit(null);
+            setIsAddEditCustomerOpen(true);
+          } else if (tab === 'receive_payment') {
+            setPaymentCustomer(null);
+            setPaymentService(null);
+            setIsReceivePaymentOpen(true);
+          } else {
+            setActiveTab(tab);
+          }
+        }}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        pendingSyncCount={syncStats.pendingCount}
+        pendingFollowupCount={followUps.filter((f) => f.status === 'pending').length}
+        officeName={businessProfile.officeName}
+        ntn={businessProfile.ntn || '7392814-2'}
+        address={businessProfile.address}
+        onLogout={() => {
+          authService.logout();
+          setCurrentUser(null);
+          setViewMode('public');
+        }}
+        onViewLandingPage={() => setViewMode('public')}
+      />
+
+      {/* Mobile Fixed Bottom Navigation Bar (Dashboard, Customers, Quick Receive Pay, Search, More) */}
+      <MobileBottomNav
+        activeTab={selectedCustomer ? 'customers' : activeTab}
+        onTabChange={(tab) => {
+          setSelectedCustomer(null);
+          setActiveTab(tab);
+        }}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenMore={() => setIsDrawerOpen(true)}
+        onQuickPay={() => {
+          setPaymentCustomer(null);
+          setPaymentService(null);
+          setIsReceivePaymentOpen(true);
+        }}
+        pendingAlertsCount={syncStats.pendingCount + followUps.filter((f) => f.status === 'pending').length}
+      />
     </div>
   );
 }

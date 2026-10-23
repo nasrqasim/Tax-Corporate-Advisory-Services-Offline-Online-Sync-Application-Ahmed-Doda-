@@ -118,58 +118,62 @@ export const DedicatedCustomerSearch: React.FC<DedicatedCustomerSearchProps> = (
         </div>
 
         {/* 3 Prominent Selectable Methods */}
-        <div className="flex border-b border-slate-800 mb-4 gap-2">
+        <div className="grid grid-cols-3 gap-1 sm:gap-2 border-b border-slate-800 mb-4">
           <button
+            type="button"
             onClick={() => {
               setSearchMethod('name');
               setSearchQuery('');
             }}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 min-h-[44px] text-xs font-semibold rounded-t-lg transition cursor-pointer ${
               searchMethod === 'name'
                 ? 'bg-slate-800 text-emerald-400 border-t-2 border-emerald-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
             }`}
           >
-            <User className="w-3.5 h-3.5" />
-            <span>1. Customer Name</span>
+            <User className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Name</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setSearchMethod('phone');
               setSearchQuery('');
             }}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 min-h-[44px] text-xs font-semibold rounded-t-lg transition cursor-pointer ${
               searchMethod === 'phone'
                 ? 'bg-slate-800 text-emerald-400 border-t-2 border-emerald-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
             }`}
           >
-            <Phone className="w-3.5 h-3.5" />
-            <span>2. Mobile Number</span>
+            <Phone className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Mobile</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setSearchMethod('cnic');
               setSearchQuery('');
             }}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 min-h-[44px] text-xs font-semibold rounded-t-lg transition cursor-pointer ${
               searchMethod === 'cnic'
                 ? 'bg-slate-800 text-emerald-400 border-t-2 border-emerald-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>3. CNIC Number</span>
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">CNIC</span>
           </button>
         </div>
 
         {/* Search Input Box */}
         <div className="relative">
-          <Search className="w-5 h-5 absolute left-3.5 top-3 text-emerald-500" />
+          <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-emerald-500 pointer-events-none" />
           <input
             type="text"
+            inputMode={searchMethod === 'cnic' ? 'numeric' : searchMethod === 'phone' ? 'tel' : 'text'}
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -177,14 +181,27 @@ export const DedicatedCustomerSearch: React.FC<DedicatedCustomerSearchProps> = (
             }}
             placeholder={
               searchMethod === 'name'
-                ? 'Type full or partial name / father name (e.g. Ahmed Ali)...'
+                ? 'Type full or partial name / father name...'
                 : searchMethod === 'phone'
-                ? 'Type mobile digits (e.g. 03001234567 or 1234)...'
-                : 'Type CNIC digits (e.g. 3520212345671 or 35202)...'
+                ? 'Type mobile digits (0300...)...'
+                : 'Type CNIC digits (35202...)...'
             }
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner"
+            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-11 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner"
             autoFocus
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedResultCustomer(null);
+              }}
+              className="absolute right-3 top-3 text-slate-400 hover:text-white p-1 rounded-md"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -320,8 +337,8 @@ export const DedicatedCustomerSearch: React.FC<DedicatedCustomerSearchProps> = (
                   <button
                     onClick={() =>
                       initiateWhatsAppMessage(
-                        activeCustomer.whatsappNumber || activeCustomer.primaryMobile,
-                        `Assalam-o-Alaikum ${activeCustomer.fullName}, contacting from Al-Haq Tax Advisory.`
+                        (activeCustomer.whatsappNumber && !activeCustomer.whatsappNumber.includes('3001234567') ? activeCustomer.whatsappNumber : activeCustomer.primaryMobile),
+                        `Assalam-o-Alaikum ${activeCustomer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services.`
                       )
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 cursor-pointer"

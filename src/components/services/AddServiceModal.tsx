@@ -70,8 +70,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   const [customerId, setCustomerId] = useState('');
   const [serviceType, setServiceType] = useState<ServiceType>('income_tax_return');
   const [customServiceName, setCustomServiceName] = useState('');
-  const [taxYear, setTaxYear] = useState('2025');
-  const [filingDeadline, setFilingDeadline] = useState('');
+  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear().toString());
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [filingDeadline, setFilingDeadline] = useState(() => new Date().toISOString().slice(0, 10));
   const [filingStatus, setFilingStatus] = useState<FilingStatus>('in_progress');
   const [assignedStaff, setAssignedStaff] = useState('Senior Consultant');
   const [agreedFee, setAgreedFee] = useState<number>(5000);
@@ -105,7 +106,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
     if (serviceType === 'ntn_registration' || serviceType === 'ntn_modification') {
       setTaxYear('N/A');
     } else if (taxYear === 'N/A') {
-      setTaxYear('2025');
+      setTaxYear(new Date().getFullYear().toString());
     }
   }, [serviceType]);
 
@@ -157,7 +158,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
         serviceType,
         customServiceName: serviceType === 'custom' ? customServiceName : undefined,
         taxYear,
-        startDate: now,
+        startDate: startDate ? `${startDate}T${now.slice(11)}` : now,
         filingDeadline: filingDeadline || undefined,
         filingStatus,
         checklist,
@@ -185,17 +186,17 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
         {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-base text-white">Create New Tax Service</h3>
+            <h3 className="font-bold text-sm sm:text-base text-white">Create New Tax Service</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
             <X className="w-4 h-4" />
           </button>
@@ -257,21 +258,65 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
               </div>
             )}
 
-            {/* Tax Year */}
+            {/* Service Start Date */}
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">Tax Year</label>
-              <select
+              <label className="block text-slate-300 font-semibold mb-1">Service Start Date (Default: Today)</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                required
+              />
+            </div>
+
+            {/* Tax Year (User input with presets, defaults to today's year) */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">
+                Tax Year (Default: Today's Year, or Type Any Year) <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                list="tax-year-suggestions"
                 value={taxYear}
                 onChange={(e) => setTaxYear(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 cursor-pointer font-mono"
-              >
+                placeholder="e.g. 2026, 2025, 2024..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
+                required
+              />
+              <datalist id="tax-year-suggestions">
+                <option value={new Date().getFullYear().toString()}>Current Year ({new Date().getFullYear()})</option>
+                <option value={(new Date().getFullYear() - 1).toString()}>Previous Year ({new Date().getFullYear() - 1})</option>
+                <option value={(new Date().getFullYear() + 1).toString()}>Next Year ({new Date().getFullYear() + 1})</option>
                 <option value="2026">Tax Year 2026</option>
                 <option value="2025">Tax Year 2025</option>
                 <option value="2024">Tax Year 2024</option>
                 <option value="2023">Tax Year 2023</option>
-                <option value="2022">Tax Year 2022</option>
                 <option value="N/A">N/A (Non-Annual / Registration)</option>
-              </select>
+              </datalist>
+              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                {[
+                  new Date().getFullYear().toString(),
+                  (new Date().getFullYear() - 1).toString(),
+                  '2026',
+                  '2025',
+                  '2024',
+                  'N/A'
+                ].filter((v, i, a) => a.indexOf(v) === i).map((yr) => (
+                  <button
+                    key={yr}
+                    type="button"
+                    onClick={() => setTaxYear(yr)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer transition border ${
+                      taxYear === yr
+                        ? 'bg-emerald-950 text-emerald-400 border-emerald-700 font-bold'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    {yr}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Filing Status */}
@@ -314,11 +359,12 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                 <label className="block text-slate-400 font-semibold mb-1">Agreed Service Fee (Rs.)</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="100"
                   value={agreedFee}
                   onChange={(e) => setAgreedFee(parseInt(e.target.value, 10) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
                   required
                 />
               </div>
@@ -327,11 +373,12 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                 <label className="block text-slate-400 font-semibold mb-1">Discount Amount (Rs.)</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="100"
                   value={discount}
                   onChange={(e) => setDiscount(parseInt(e.target.value, 10) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
                 />
               </div>
 
@@ -407,18 +454,18 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-slate-800 pt-3 flex items-center justify-end gap-2">
+          <div className="border-t border-slate-800 pt-3 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer transition"
+              className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer transition flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm cursor-pointer disabled:opacity-50 transition"
+              className="flex-1 sm:flex-initial min-h-[44px] flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm cursor-pointer disabled:opacity-50 transition"
             >
               <Save className="w-4 h-4" />
               <span>{isSubmitting ? 'Creating...' : 'Create Tax Service'}</span>

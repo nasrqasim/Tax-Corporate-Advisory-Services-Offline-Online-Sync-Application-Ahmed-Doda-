@@ -2,13 +2,14 @@
  * System Settings, User Roles & Follow-ups
  */
 
-export type UserRole = 'admin' | 'consultant' | 'accountant';
+export type UserRole = 'super_admin' | 'admin' | 'consultant' | 'accountant';
 
 export interface AppUser {
   id: string;
   name: string;
   email?: string;
   role: UserRole;
+  passwordHash?: string;
   pinHash?: string;
   isActive: boolean;
   createdAt: string;
@@ -28,6 +29,7 @@ export interface BusinessProfile {
   allowOverpayments: boolean;
   enableEncryption: boolean;
   receiptFooterNote: string;
+  developerCredit?: string;
 }
 
 export interface FollowUpReminder {

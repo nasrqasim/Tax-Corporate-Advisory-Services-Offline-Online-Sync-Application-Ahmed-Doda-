@@ -55,19 +55,19 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[95dvh] sm:max-h-[95vh]">
         {/* Controls Header (Hidden on Print) */}
-        <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/70 no-print">
+        <div className="px-4 sm:px-5 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between bg-slate-950/70 no-print gap-2">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white">Customer Account Statement</span>
+            <span className="font-bold text-xs sm:text-sm text-white">Account Statement</span>
             <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-emerald-400 font-mono">
               {customer.id}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs">
               <input
                 type="date"
                 value={startDate}
@@ -86,15 +86,17 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm min-h-[38px]"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print / Save PDF</span>
+              <Printer className="w-4 h-4" />
+              <span>Print / PDF</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center"
             >
               <X className="w-4 h-4" />
             </button>
@@ -102,7 +104,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
         </div>
 
         {/* PRINTABLE CANVAS */}
-        <div className="p-8 overflow-y-auto bg-white text-slate-900 printable-area selection:bg-emerald-200">
+        <div className="p-4 sm:p-8 overflow-y-auto bg-white text-slate-900 printable-area selection:bg-emerald-200">
           {/* Header */}
           <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
@@ -117,8 +119,9 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
               <p className="text-xs text-slate-600 mt-1 max-w-md">
                 {businessProfile.address}, {businessProfile.city}
               </p>
-              <div className="text-[11px] text-slate-600 mt-0.5 flex items-center gap-3">
+              <div className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <span>Phone: {businessProfile.primaryPhone}</span>
+                <span>Email: {businessProfile.email || 'ahmeddodataxcrm@gmail.com'}</span>
                 {businessProfile.ntn && (
                   <span className="font-semibold text-slate-900 font-mono">
                     NTN: {businessProfile.ntn}
@@ -165,8 +168,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           </div>
 
           {/* Itemized Transactions Table */}
-          <div className="py-4">
-            <table className="w-full text-xs border-collapse">
+          <div className="py-4 overflow-x-auto">
+            <table className="w-full text-xs border-collapse min-w-[500px]">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[10px]">
                   <th className="py-2.5 px-3 text-left">Date</th>
@@ -210,8 +213,13 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           </div>
 
           {/* Statement Footer */}
-          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500">
-            This customer account statement is an authoritative financial record generated by {businessProfile.officeName}.
+          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500 space-y-1">
+            <div>
+              This customer account statement is an authoritative financial record generated by {businessProfile.officeName}.
+            </div>
+            <div className="font-semibold text-slate-700 tracking-wide pt-1">
+              {businessProfile.developerCredit || 'Software by Roonjha Developers: 03152914836'}
+            </div>
           </div>
         </div>
       </div>

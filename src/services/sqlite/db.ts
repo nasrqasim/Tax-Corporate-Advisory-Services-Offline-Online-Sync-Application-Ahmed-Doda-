@@ -10,7 +10,7 @@ import { PaymentTransaction, RefundRecord } from '../../types/payment';
 import { OutboxEntry, EntityType, OutboxOperation } from '../../types/sync';
 import { BusinessProfile, FollowUpReminder, AppUser } from '../../types/settings';
 import { encryptData, decryptData } from '../security/crypto';
-import { normalizeCnic } from '../validation/cnic';
+import { normalizeCnic, formatCnic } from '../validation/cnic';
 import { normalizePhone } from '../validation/phone';
 
 const DB_STORAGE_KEY = 'tax_crm_sqlite_encrypted_db_v1';
@@ -83,6 +83,31 @@ class SQLiteDatabaseService {
             }
           }
         }
+      }
+
+      // Sanitize any existing records where whatsapp was hardcoded to +923001234567
+      let stateChanged = false;
+      if (this.state && Array.isArray(this.state.customers)) {
+        this.state.customers.forEach((cust) => {
+          if (cust.whatsappNumber && cust.whatsappNumber.includes('3001234567') && cust.primaryMobile && !cust.primaryMobile.includes('3001234567')) {
+            cust.whatsappNumber = cust.primaryMobile;
+            stateChanged = true;
+          }
+        });
+      }
+      if (this.state && this.state.settings && (this.state.settings as any)['business_profile']) {
+        const bp = (this.state.settings as any)['business_profile'];
+        if (bp.primaryPhone && String(bp.primaryPhone).includes('3001234567')) {
+          bp.primaryPhone = '03152914836';
+          stateChanged = true;
+        }
+        if (bp.whatsapp && String(bp.whatsapp).includes('3001234567')) {
+          bp.whatsapp = '03152914836';
+          stateChanged = true;
+        }
+      }
+      if (stateChanged) {
+        await this.persist();
       }
 
       // Seed initial data if empty
@@ -176,11 +201,15 @@ class SQLiteDatabaseService {
 
     if (existingIndex >= 0) {
       operation = 'UPDATE';
+      const resolvedWa = (customer.whatsappNumber && customer.whatsappNumber !== '+923001234567' && normalizePhone(customer.whatsappNumber) !== '+923001234567')
+        ? normalizePhone(customer.whatsappNumber)
+        : normalizePhone(customer.primaryMobile);
+
       savedCustomer = {
         ...customer,
-        cnic: normalizeCnic(customer.cnic),
+        cnic: formatCnic(customer.cnic),
         primaryMobile: normalizePhone(customer.primaryMobile),
-        whatsappNumber: normalizePhone(customer.whatsappNumber),
+        whatsappNumber: resolvedWa,
         updatedAt: now,
         version: (customer.version || 1) + 1,
         syncStatus: 'pending_sync'
@@ -191,7 +220,7 @@ class SQLiteDatabaseService {
       savedCustomer = {
         ...customer,
         id: generatedId,
-        cnic: normalizeCnic(customer.cnic),
+        cnic: formatCnic(customer.cnic),
         primaryMobile: normalizePhone(customer.primaryMobile),
         whatsappNumber: normalizePhone(customer.whatsappNumber),
         createdAt: customer.createdAt || now,
@@ -210,6 +239,53 @@ class SQLiteDatabaseService {
 
     await this.persist();
     return savedCustomer;
+  }
+
+  public async deleteCustomer(
+    customerId: string,
+    reason: string = 'User requested deletion',
+    userId: string = 'admin'
+  ): Promise<{ success: boolean; actionTaken: 'deleted' | 'archived' | 'rejected'; message: string }> {
+    await this.init();
+    const custIndex = this.state.customers.findIndex((c) => c.id === customerId);
+    if (custIndex === -1) {
+      return { success: false, actionTaken: 'rejected', message: 'Customer record not found.' };
+    }
+
+    const customer = this.state.customers[custIndex];
+    const linkedServices = this.state.taxServices.filter((s) => s.customerId === customerId);
+    const linkedPayments = this.state.payments.filter((p) => p.customerId === customerId);
+
+    // If customer has linked financial or filing records, protect accounting integrity:
+    if (linkedServices.length > 0 || linkedPayments.length > 0) {
+      // Perform safe archival / deactivation instead of destructive deletion
+      customer.status = 'inactive';
+      customer.updatedAt = new Date().toISOString();
+      customer.version = (customer.version || 1) + 1;
+      this.state.customers[custIndex] = customer;
+
+      this.enqueueOutbox('UPDATE', 'customer', customer.id, customer, customer.version);
+      this.logAudit(userId, 'ARCHIVE_CUSTOMER', 'customer', customer.id, `Archived customer ${customer.fullName} due to ${linkedServices.length} services and ${linkedPayments.length} payments. Reason: ${reason}`);
+      await this.persist();
+
+      return {
+        success: true,
+        actionTaken: 'archived',
+        message: `Customer "${customer.fullName}" has ${linkedServices.length} service(s) and ${linkedPayments.length} payment record(s). To preserve accounting and tax audit integrity, the customer was safely Archived / Deactivated rather than permanently deleted.`
+      };
+    }
+
+    // No linked records: safe permanent deletion
+    this.state.customers.splice(custIndex, 1);
+    this.enqueueOutbox('DELETE', 'customer', customerId, { id: customerId }, (customer.version || 1) + 1);
+    this.logAudit(userId, 'DELETE_CUSTOMER', 'customer', customerId, `Permanently deleted customer ${customer.fullName} (no linked financial records). Reason: ${reason}`);
+    await this.persist();
+
+    return {
+      success: true,
+      actionTaken: 'deleted',
+      message: `Customer "${customer.fullName}" was successfully removed.`
+    };
   }
 
   // --- TAX SERVICES OPERATIONS ---
@@ -336,6 +412,122 @@ class SQLiteDatabaseService {
     return newPayment;
   }
 
+  public async updatePayment(
+    paymentId: string,
+    updates: Partial<PaymentTransaction>,
+    reason: string = 'Payment updated by user',
+    userId: string = 'admin'
+  ): Promise<PaymentTransaction> {
+    await this.init();
+    const txnIndex = this.state.payments.findIndex((p) => p.id === paymentId);
+    if (txnIndex === -1) {
+      throw new Error(`Payment transaction ${paymentId} not found.`);
+    }
+
+    const oldTxn = this.state.payments[txnIndex];
+    const now = new Date().toISOString();
+
+    const updatedPayment: PaymentTransaction = {
+      ...oldTxn,
+      ...updates,
+      updatedAt: now,
+      version: (oldTxn.version || 1) + 1,
+      syncStatus: 'pending_sync'
+    };
+
+    this.state.payments[txnIndex] = updatedPayment;
+
+    // Recalculate associated tax service
+    const serviceIndex = this.state.taxServices.findIndex((s) => s.id === updatedPayment.serviceId);
+    if (serviceIndex >= 0) {
+      const service = this.state.taxServices[serviceIndex];
+      const validPayments = this.state.payments.filter((p) => p.serviceId === service.id && p.status === 'valid');
+      const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0);
+      const outstanding = Math.max(0, service.finalPayable - totalPaid);
+
+      let status: TaxService['paymentStatus'] = 'unpaid';
+      if (totalPaid === 0) status = 'unpaid';
+      else if (totalPaid < service.finalPayable) status = 'partially_paid';
+      else if (totalPaid === service.finalPayable) status = 'paid';
+      else status = 'overpaid';
+
+      this.state.taxServices[serviceIndex] = {
+        ...service,
+        amountPaid: totalPaid,
+        outstandingBalance: outstanding,
+        paymentStatus: status,
+        updatedAt: now,
+        version: (service.version || 1) + 1,
+        syncStatus: 'pending_sync'
+      };
+      this.enqueueOutbox('UPDATE', 'tax_service', service.id, this.state.taxServices[serviceIndex], this.state.taxServices[serviceIndex].version);
+    }
+
+    this.enqueueOutbox('UPDATE', 'payment_transaction', updatedPayment.id, updatedPayment, updatedPayment.version);
+    this.logAudit(userId, 'UPDATE_PAYMENT', 'payment_transaction', updatedPayment.id, `Updated payment ${updatedPayment.receiptNumber} from Rs. ${oldTxn.amount} to Rs. ${updatedPayment.amount}. Reason: ${reason}`);
+
+    await this.persist();
+    return updatedPayment;
+  }
+
+  public async deleteOrReversePayment(
+    paymentId: string,
+    reason: string = 'Payment reversed by user',
+    userId: string = 'admin'
+  ): Promise<PaymentTransaction> {
+    await this.init();
+    const txnIndex = this.state.payments.findIndex((p) => p.id === paymentId);
+    if (txnIndex === -1) {
+      throw new Error(`Payment transaction ${paymentId} not found.`);
+    }
+
+    const oldTxn = this.state.payments[txnIndex];
+    const now = new Date().toISOString();
+
+    const reversedPayment: PaymentTransaction = {
+      ...oldTxn,
+      status: 'reversed',
+      notes: oldTxn.notes ? `${oldTxn.notes} [REVERSED: ${reason}]` : `[REVERSED: ${reason}]`,
+      updatedAt: now,
+      version: (oldTxn.version || 1) + 1,
+      syncStatus: 'pending_sync'
+    };
+
+    this.state.payments[txnIndex] = reversedPayment;
+
+    // Recalculate associated tax service
+    const serviceIndex = this.state.taxServices.findIndex((s) => s.id === reversedPayment.serviceId);
+    if (serviceIndex >= 0) {
+      const service = this.state.taxServices[serviceIndex];
+      const validPayments = this.state.payments.filter((p) => p.serviceId === service.id && p.status === 'valid');
+      const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0);
+      const outstanding = Math.max(0, service.finalPayable - totalPaid);
+
+      let status: TaxService['paymentStatus'] = 'unpaid';
+      if (totalPaid === 0) status = 'unpaid';
+      else if (totalPaid < service.finalPayable) status = 'partially_paid';
+      else if (totalPaid === service.finalPayable) status = 'paid';
+      else status = 'overpaid';
+
+      this.state.taxServices[serviceIndex] = {
+        ...service,
+        amountPaid: totalPaid,
+        outstandingBalance: outstanding,
+        paymentStatus: status,
+        updatedAt: now,
+        version: (service.version || 1) + 1,
+        syncStatus: 'pending_sync'
+      };
+      this.enqueueOutbox('UPDATE', 'tax_service', service.id, this.state.taxServices[serviceIndex], this.state.taxServices[serviceIndex].version);
+    }
+
+    this.enqueueOutbox('UPDATE', 'payment_transaction', reversedPayment.id, reversedPayment, reversedPayment.version);
+    this.logAudit(userId, 'REVERSE_PAYMENT', 'payment_transaction', reversedPayment.id, `Reversed payment ${reversedPayment.receiptNumber} of Rs. ${reversedPayment.amount}. Reason: ${reason}`);
+
+    await this.persist();
+    return reversedPayment;
+  }
+
   // --- REFUND / REVERSAL OPERATIONS ---
   public async getRefunds(customerId?: string): Promise<RefundRecord[]> {
     await this.init();
@@ -400,19 +592,20 @@ class SQLiteDatabaseService {
   public async getBusinessProfile(): Promise<BusinessProfile> {
     await this.init();
     const defaults: BusinessProfile = {
-      officeName: 'Al-Haq Tax & Corporate Advisory Services',
+      officeName: 'Ahmed Doda Tax & Corporate Advisory Services',
       tagline: 'Income Tax, Sales Tax & NTN Registration Specialists',
       ntn: '7392814-2',
-      primaryPhone: '+923001234567',
+      primaryPhone: '03152914836',
       secondaryPhone: '+923219876543',
-      whatsapp: '+923001234567',
-      email: 'contact@alhaqtax.pk',
-      address: 'Suite #402, 4th Floor, Executive Heights, Blue Area',
-      city: 'Islamabad',
+      whatsapp: '03152914836',
+      email: 'ahmeddodataxcrm@gmail.com',
+      address: 'Winder, Hub, Balochistan, Pakistan',
+      city: 'Hub / Winder',
       currencySymbol: 'Rs. ',
       allowOverpayments: false,
       enableEncryption: true,
-      receiptFooterNote: 'Thank you for your business. Retain this official receipt for your tax records.'
+      receiptFooterNote: 'Thank you for your business. Retain this official receipt for your tax records.',
+      developerCredit: 'Software by Roonjha Developers: 03152914836'
     };
     return { ...defaults, ...(this.state.settings['business_profile'] || {}) };
   }

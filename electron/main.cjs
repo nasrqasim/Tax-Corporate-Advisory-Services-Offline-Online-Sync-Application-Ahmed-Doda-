@@ -7,7 +7,7 @@ function createWindow() {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'Tax Customer Management System - Al-Haq Tax Advisory',
+    title: 'Tax Customer Management System - Ahmed Doda Tax & Corporate Advisory Services',
     icon: path.join(__dirname, '../public/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

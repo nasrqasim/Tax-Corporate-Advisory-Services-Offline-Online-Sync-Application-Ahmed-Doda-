@@ -153,27 +153,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
           <button
+            type="button"
             onClick={() => onReceivePayment()}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition shadow-sm cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs transition shadow-sm cursor-pointer min-h-[40px]"
           >
             <CreditCard className="w-4 h-4" />
             <span>Receive Payment</span>
           </button>
           <button
+            type="button"
             onClick={() => onNavigate('add_customer')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 font-medium text-xs border border-slate-700 transition cursor-pointer min-h-[40px]"
           >
             <Users className="w-4 h-4 text-emerald-400" />
             <span>Add Customer</span>
           </button>
           <button
+            type="button"
             onClick={() => onNavigate('reports')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 font-medium text-xs border border-slate-700 transition cursor-pointer min-h-[40px]"
           >
             <TrendingUp className="w-4 h-4 text-blue-400" />
-            <span>View Reports</span>
+            <span>Reports</span>
           </button>
         </div>
       </div>

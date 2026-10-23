@@ -2,7 +2,7 @@
 name = "tax_customer_management"
 version = "1.0.0"
 description = "Offline-First Tax Customer Management System"
-authors = ["Al-Haq Tax Advisory"]
+authors = ["Ahmed Doda Tax & Corporate Advisory Services"]
 edition = "2021"
 
 [build-dependencies]

@@ -154,8 +154,27 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Print Only Business Header */}
+      <div className="hidden print-only mb-6 border-b-2 border-slate-900 pb-4 text-black">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-xl font-bold">{businessProfile.officeName}</h1>
+            <p className="text-xs text-slate-700">{businessProfile.address}, {businessProfile.city}</p>
+            <div className="text-[11px] text-slate-700 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              <span>Phone: {businessProfile.primaryPhone}</span>
+              <span>Email: {businessProfile.email || 'ahmeddodataxcrm@gmail.com'}</span>
+              {businessProfile.ntn && <span className="font-mono font-bold">NTN: {businessProfile.ntn}</span>}
+            </div>
+          </div>
+          <div className="text-right text-xs">
+            <span className="font-bold uppercase tracking-wider block">Official Financial Report</span>
+            <span className="text-slate-600 block">Generated: {new Date().toLocaleDateString('en-PK')}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-xl border border-slate-800 no-print">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-emerald-400" />
@@ -179,7 +198,7 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
       </div>
 
       {/* Report Selection Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs no-print">
         <button
           onClick={() => setActiveReport('outstanding_balances')}
           className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
@@ -692,6 +711,16 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* Report Footer & Developer Credit */}
+        <div className="mt-8 pt-4 border-t border-slate-800 text-center text-xs text-slate-400 print:text-slate-800 print:border-slate-300 space-y-1">
+          <div className="font-semibold text-slate-300 print:text-black">
+            {businessProfile.developerCredit || 'Software by Roonjha Developers: 03152914836'}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-1">
+            {businessProfile.officeName} • NTN: {businessProfile.ntn} • {businessProfile.address}, {businessProfile.city}
+          </div>
+        </div>
       </div>
     </div>
   );

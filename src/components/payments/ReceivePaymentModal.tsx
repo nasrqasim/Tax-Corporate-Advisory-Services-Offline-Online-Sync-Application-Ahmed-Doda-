@@ -45,6 +45,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   const [amount, setAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear().toString());
   const [transactionReference, setTransactionReference] = useState('');
   const [receivedBy, setReceivedBy] = useState('Senior Partner');
   const [notes, setNotes] = useState('');
@@ -83,6 +84,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   useEffect(() => {
     if (currentService) {
       setAmount(currentService.outstandingBalance);
+      if (currentService.taxYear) setTaxYear(currentService.taxYear);
     }
   }, [currentService?.id, currentService?.outstandingBalance]);
 
@@ -132,7 +134,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
       const paymentData = {
         customerId: selectedCustomerId,
         serviceId: currentService.id,
-        taxYear: currentService.taxYear,
+        taxYear: taxYear.trim() || currentService.taxYear || new Date().getFullYear().toString(),
         amount: Math.round(amount),
         paymentMethod,
         paymentDate: `${paymentDate}T${new Date().toTimeString().slice(0, 8)}.000Z`,
@@ -160,17 +162,17 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
           <div className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-base text-white">Receive Customer Payment</h3>
+            <h3 className="font-bold text-sm sm:text-base text-white">Receive Customer Payment</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
             <X className="w-4 h-4" />
           </button>
@@ -244,9 +246,10 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
                 Amount Received (PKR) <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-slate-400 font-semibold">Rs.</span>
+                <span className="absolute left-3 top-2.5 text-slate-400 font-semibold">Rs.</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="1"
                   step="50"
                   value={amount || ''}
@@ -254,6 +257,29 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-white font-mono font-bold text-sm focus:outline-none focus:border-emerald-500"
                   required
                 />
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {currentOutstanding > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount(currentOutstanding)}
+                    className="px-2 py-1 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-[10px] font-mono cursor-pointer transition"
+                  >
+                    Full: {formatPKR(currentOutstanding)}
+                  </button>
+                )}
+                {[1000, 2000, 3000, 5000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAmount(preset)}
+                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-mono cursor-pointer transition"
+                  >
+                    Rs. {preset.toLocaleString()}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -263,7 +289,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 cursor-pointer text-xs sm:text-sm"
               >
                 <option value="Cash">Cash in Hand</option>
                 <option value="Bank Transfer">Bank Transfer (Online/IBFT)</option>
@@ -285,16 +311,37 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
           )}
 
           {/* Date & Reference */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Payment Date</label>
               <input
                 type="date"
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Tax Year (Input / Preset)</label>
+              <input
+                type="text"
+                list="receive-pay-year-list"
+                value={taxYear}
+                onChange={(e) => setTaxYear(e.target.value)}
+                placeholder="e.g. 2026, 2025"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs sm:text-sm"
+                required
+              />
+              <datalist id="receive-pay-year-list">
+                <option value={new Date().getFullYear().toString()} />
+                <option value={(new Date().getFullYear() - 1).toString()} />
+                <option value="2026" />
+                <option value="2025" />
+                <option value="2024" />
+                <option value="N/A" />
+              </datalist>
             </div>
 
             <div>
@@ -348,21 +395,21 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-slate-800 pt-3 flex items-center justify-end gap-2">
+          <div className="border-t border-slate-800 pt-3 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer transition"
+              className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer transition flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || (amount > currentOutstanding && !businessProfile.allowOverpayments)}
-              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm cursor-pointer disabled:opacity-50 transition"
+              className="flex-1 sm:flex-initial min-h-[44px] flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm cursor-pointer disabled:opacity-50 transition"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Recording...' : 'Save Payment & Generate Receipt'}</span>
+              <span>{isSubmitting ? 'Recording...' : 'Save & Receipt'}</span>
             </button>
           </div>
         </form>

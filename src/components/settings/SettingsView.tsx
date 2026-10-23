@@ -166,11 +166,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Primary Phone</label>
                 <input
                   type="text"
+                  inputMode="tel"
                   value={profile.primaryPhone}
                   onChange={(e) => setProfile({ ...profile, primaryPhone: e.target.value })}
                   className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -182,6 +183,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <label className="block text-slate-300 font-semibold mb-1">WhatsApp Hotline</label>
                 <input
                   type="text"
+                  inputMode="tel"
                   value={profile.whatsapp || ''}
                   onChange={(e) => setProfile({ ...profile, whatsapp: e.target.value })}
                   className="w-full bg-slate-800 border border-slate-700 font-mono rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -238,7 +240,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium cursor-pointer shadow-sm disabled:opacity-50"
+                className="w-full sm:w-auto ml-auto flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold cursor-pointer shadow-sm disabled:opacity-50 min-h-[44px]"
               >
                 <Save className="w-4 h-4" />
                 <span>{isSaving ? 'Saving...' : 'Save Office Settings'}</span>

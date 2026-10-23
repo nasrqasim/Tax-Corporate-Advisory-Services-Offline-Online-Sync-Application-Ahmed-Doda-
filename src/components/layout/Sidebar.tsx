@@ -103,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 text-slate-300">
+    <aside className="hidden lg:flex w-64 bg-slate-900 border-r border-slate-800 flex-col flex-shrink-0 text-slate-300">
       <div className="flex-1 py-4 overflow-y-auto px-3 space-y-6">
         {navSections.map((sec, idx) => (
           <div key={idx}>

@@ -1,5 +1,5 @@
 @echo off
-title Tax Customer Management System - Al-Haq Tax Advisory
+title Tax Customer Management System - Ahmed Doda Tax & Corporate Advisory Services
 echo ====================================================================
 echo   TAX CUSTOMER MANAGEMENT SYSTEM - OFFLINE-FIRST DESKTOP
 echo   Pakistani Tax Services ^| CRM ^| Accounts Ledger ^| SQLite
