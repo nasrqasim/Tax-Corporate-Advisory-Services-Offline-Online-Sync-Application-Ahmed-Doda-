@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Cloud, CloudOff, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { outboxManager } from '../../services/sync/outbox';
-import { syncEngine } from '../../services/sync/firestoreSync';
+import { syncEngine } from '../../services/sync/supabaseSync';
 import { SyncStats } from '../../types/sync';
 
 interface SyncBadgeProps {

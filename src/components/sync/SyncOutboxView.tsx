@@ -7,11 +7,12 @@ import {
   Database,
   ArrowRight,
   ShieldCheck,
-  Server
+  Server,
+  HardDrive
 } from 'lucide-react';
 import { OutboxEntry, SyncStats, SyncConflict } from '../../types/sync';
 import { dbService } from '../../services/sqlite/db';
-import { syncEngine } from '../../services/sync/firestoreSync';
+import { syncEngine } from '../../services/sync/supabaseSync';
 import { outboxManager } from '../../services/sync/outbox';
 
 export const SyncOutboxView: React.FC = () => {
@@ -26,6 +27,15 @@ export const SyncOutboxView: React.FC = () => {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    connected: boolean;
+    url: string;
+    message: string;
+  }>({
+    connected: true,
+    url: syncEngine.getConfig().url,
+    message: 'Supabase PostgreSQL & Storage Pipeline Active'
+  });
 
   const loadOutbox = async () => {
     try {
@@ -41,6 +51,13 @@ export const SyncOutboxView: React.FC = () => {
 
   useEffect(() => {
     loadOutbox();
+    syncEngine.testConnection().then((res) => {
+      setSupabaseStatus({
+        connected: res.success,
+        url: res.url,
+        message: res.message
+      });
+    });
     const interval = setInterval(loadOutbox, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -61,10 +78,10 @@ export const SyncOutboxView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-xl border border-slate-800">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Cloud className="w-5 h-5 text-blue-400" />
-            <span>Durable Offline Outbox & Cloud Sync</span>
+            <Cloud className="w-5 h-5 text-emerald-400" />
+            <span>Durable Offline Outbox & Supabase Sync</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-normal">
-              Firestore & Storage Pipeline
+              Supabase PostgreSQL & Storage
             </span>
           </h2>
           <p className="text-xs text-slate-400">
@@ -75,11 +92,42 @@ export const SyncOutboxView: React.FC = () => {
         <button
           onClick={handleManualSync}
           disabled={isSyncing}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition shadow-sm cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition shadow-sm cursor-pointer disabled:opacity-50 self-start sm:self-auto"
         >
           <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-          <span>{isSyncing ? 'Synchronizing Outbox...' : 'Trigger Cloud Sync'}</span>
+          <span>{isSyncing ? 'Synchronizing Outbox...' : 'Trigger Supabase Sync'}</span>
         </button>
+      </div>
+
+      {/* Cloud & Supabase Target Card */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-400">
+            <Server className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-white flex items-center gap-2">
+              <span>Cloud Provider: Supabase Database & Storage</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                Live
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-400 font-mono">
+              Endpoint: {supabaseStatus.url}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+            <HardDrive className="w-3.5 h-3.5 text-blue-400" />
+            <span>Bucket: documents</span>
+          </span>
+          <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Idempotency Protected</span>
+          </span>
+        </div>
       </div>
 
       {/* Sync Status KPI Cards */}

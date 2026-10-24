@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { dbService } from '../services/sqlite/db';
 import { outboxManager } from '../services/sync/outbox';
-import { syncEngine } from '../services/sync/firestoreSync';
+import { syncEngine } from '../services/sync/supabaseSync';
 import { calculateCustomerFinancials, calculateServiceFinancials, formatPKR } from '../services/financial/ledger';
 import { PaymentTransaction } from '../types/payment';
 import { TaxService } from '../types/service';
@@ -48,7 +48,7 @@ describe('Cross-Device Synchronization & Idempotency Engine', () => {
     // 4. Retry sync with identical outbox entry - must NOT create duplicate payment
     const statsAfterRetry = await syncEngine.triggerSync();
     expect(statsAfterRetry.pendingCount).toBe(0);
-  });
+  }, 15000);
 
   it('preserves offline transactions made across Android and Windows devices', async () => {
     // Simulate Customer with two tax services

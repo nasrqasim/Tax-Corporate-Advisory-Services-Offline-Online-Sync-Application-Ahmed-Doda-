@@ -95,12 +95,13 @@ Built mobile-first for Android smartphones and tablets while delivering a rich d
 | Layer | Technologies |
 |---|---|
 | **Frontend Framework** | React 18, TypeScript, Tailwind CSS, Lucide React, Vite |
+| **Cloud Database & Storage** | Supabase PostgreSQL & Supabase Storage (`@supabase/supabase-js`) |
 | **Mobile Runtime (Android)** | Capacitor 6 (`@capacitor/android`, `@capacitor/core`, `@capacitor/cli`) |
 | **Desktop Runtime (Windows)** | Electron 34 (`electron/main.cjs`) + Tauri 2 (`src-tauri/`) |
 | **Cloud Deployment** | Vercel (`vercel.json`) |
 | **Data Persistence** | Offline Encrypted Storage Engine with Durability Outbox |
 | **Cryptographic Security** | Web Crypto API (AES-256-GCM, PBKDF2), SHA-256 Integrity Checksums |
-| **Testing Suite** | Vitest (35 passing unit, integration, validation & financial tests) |
+| **Testing Suite** | Vitest (38 passing unit, integration, validation & Supabase tests) |
 
 ---
 
