@@ -1,8 +1,8 @@
 -- Ahmed Doda Tax & Corporate Advisory Services
 -- Supabase PostgreSQL Schema for Cloud Synchronization
--- Generated for project: https://zoqtihnzebrxqarnvfap.supabase.co
+-- Target Database: https://zoqtihnzebrxqarnvfap.supabase.co
 
--- 1. Enable UUID Extension
+-- 1. Enable UUID Generator
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 2. Customers Table
@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS public.tax_services (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tax_services_customer_id ON public.tax_services (customer_id);
-CREATE INDEX IF NOT EXISTS idx_tax_services_tax_year ON public.tax_services (tax_year);
 
 -- 4. Payment Transactions Table
 CREATE TABLE IF NOT EXISTS public.payment_transactions (
@@ -76,7 +75,6 @@ CREATE TABLE IF NOT EXISTS public.payment_transactions (
 
 CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON public.payment_transactions (customer_id);
 CREATE INDEX IF NOT EXISTS idx_payments_receipt_number ON public.payment_transactions (receipt_number);
-CREATE INDEX IF NOT EXISTS idx_payments_idempotency_key ON public.payment_transactions (idempotency_key);
 
 -- 5. Refund Records Table
 CREATE TABLE IF NOT EXISTS public.refund_records (
@@ -106,9 +104,6 @@ CREATE TABLE IF NOT EXISTS public.outbox_entries (
     client_timestamp TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_outbox_idempotency ON public.outbox_entries (idempotency_key);
-CREATE INDEX IF NOT EXISTS idx_outbox_entity ON public.outbox_entries (entity_type, entity_id);
-
 -- 7. App Settings Table
 CREATE TABLE IF NOT EXISTS public.app_settings (
     key TEXT PRIMARY KEY,
@@ -116,27 +111,14 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Audit Logs Table
-CREATE TABLE IF NOT EXISTS public.audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id TEXT NOT NULL,
-    action TEXT NOT NULL,
-    entity_type TEXT NOT NULL,
-    entity_id TEXT NOT NULL,
-    details TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 9. Row Level Security (RLS) Configuration
+-- 8. Enable Row Level Security (RLS) & Policies
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tax_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.refund_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.outbox_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Allow read/write policies for authenticated staff and anon API access
 DROP POLICY IF EXISTS "Allow anon all on customers" ON public.customers;
 CREATE POLICY "Allow anon all on customers" ON public.customers FOR ALL USING (true) WITH CHECK (true);
 
@@ -154,24 +136,3 @@ CREATE POLICY "Allow anon all on outbox_entries" ON public.outbox_entries FOR AL
 
 DROP POLICY IF EXISTS "Allow anon all on app_settings" ON public.app_settings;
 CREATE POLICY "Allow anon all on app_settings" ON public.app_settings FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow anon all on audit_logs" ON public.audit_logs;
-CREATE POLICY "Allow anon all on audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
-
--- 10. Storage Bucket & Policies for 'documents'
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('documents', 'documents', false)
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Allow anon storage select on documents" ON storage.objects;
-CREATE POLICY "Allow anon storage select on documents" ON storage.objects FOR SELECT USING (bucket_id = 'documents');
-
-DROP POLICY IF EXISTS "Allow anon storage insert on documents" ON storage.objects;
-CREATE POLICY "Allow anon storage insert on documents" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'documents');
-
-DROP POLICY IF EXISTS "Allow anon storage update on documents" ON storage.objects;
-CREATE POLICY "Allow anon storage update on documents" ON storage.objects FOR UPDATE USING (bucket_id = 'documents');
-
-DROP POLICY IF EXISTS "Allow anon storage delete on documents" ON storage.objects;
-CREATE POLICY "Allow anon storage delete on documents" ON storage.objects FOR DELETE USING (bucket_id = 'documents');
-
