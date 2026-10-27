@@ -14,7 +14,7 @@ const PASSWORD_SALT = 'ahmed_doda_tax_crm_2026_salt_914836';
 
 // Super Admin initial configuration
 export const SUPER_ADMIN_EMAIL = 'ahmeddodataxcrm@gmail.com';
-const INITIAL_SUPER_ADMIN_PASS = 'Ahmed123';
+const INITIAL_SUPER_ADMIN_PASS = 'Ahmed#@Doda2CO';
 
 class AuthService {
   private currentUser: AppUser | null = null;
@@ -56,22 +56,25 @@ class AuthService {
       (u) => u.email && u.email.trim().toLowerCase() === normalizedEmail
     );
 
+    const targetHash = await this.hashPassword(INITIAL_SUPER_ADMIN_PASS);
+
     if (!existingAdmin) {
-      const passwordHash = await this.hashPassword(INITIAL_SUPER_ADMIN_PASS);
       const superAdmin: AppUser = {
         id: 'usr-super-admin',
         name: 'Ahmed Doda (Super Admin)',
         email: normalizedEmail,
         role: 'super_admin',
-        passwordHash,
+        passwordHash: targetHash,
         isActive: true,
         createdAt: new Date().toISOString()
       };
       users.unshift(superAdmin);
       this.saveUsers(users);
-    } else if (existingAdmin.role !== 'super_admin') {
-      // Upgrade role if necessary
+    } else {
+      // Ensure Super Admin has the official updated password and super_admin role
+      existingAdmin.passwordHash = targetHash;
       existingAdmin.role = 'super_admin';
+      existingAdmin.isActive = true;
       this.saveUsers(users);
     }
   }
@@ -112,8 +115,8 @@ class AuthService {
         await this.ensureSuperAdminAccount();
         user = this.getAllUsers().find((u) => u.email && u.email.trim().toLowerCase() === normalizedEmail);
       }
-      // Support both Ahmed123 and Admin123 for Super Admin convenience
-      if (trimmedPassword === 'Admin123' || trimmedPassword === 'Ahmed123') {
+      // Support official Super Admin password
+      if (trimmedPassword === 'Ahmed#@Doda2CO') {
         const newHash = await this.hashPassword(trimmedPassword);
         if (user) {
           user.passwordHash = newHash;

@@ -85,7 +85,7 @@ Built mobile-first for Android smartphones and tablets while delivering a rich d
 - **Idempotent Outbox Synchronization**: Every create/update/refund operation generates a unique UUID `idempotencyKey`. Network retries will never produce duplicate records or distorted balances.
 - **Staff Authentication**:
   - Super Admin: `ahmeddodataxcrm@gmail.com`
-  - Passwords: `Admin123` or `Ahmed123`
+  - Password: `Ahmed#@Doda2CO`
   - Complete local audit trail with timestamps and user IDs.
 
 ---

@@ -104,27 +104,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </div>
           )}
 
-          {/* Quick Credential Hint / Auto-Fill */}
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-2.5 text-[11px] text-slate-300 flex items-center justify-between gap-2">
-            <div>
-              <span className="text-slate-400 block text-[10px]">Super Admin Login:</span>
-              <span className="font-mono text-emerald-400 font-medium">ahmeddodataxcrm@gmail.com</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('ahmeddodataxcrm@gmail.com');
-                setPassword('Admin123');
-                setErrorMsg('');
-              }}
-              className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-[10px] font-semibold cursor-pointer transition shrink-0"
-            >
-              Auto-Fill
-            </button>
-          </div>
-
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4 text-xs">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">
                 Authorized Email Address <span className="text-rose-400">*</span>
@@ -134,7 +115,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <input
                   type="email"
                   inputMode="email"
-                  autoComplete="email"
+                  autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="e.g. ahmeddodataxcrm@gmail.com"
@@ -152,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your security password"
