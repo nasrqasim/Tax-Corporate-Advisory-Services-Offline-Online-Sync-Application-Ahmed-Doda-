@@ -14,6 +14,9 @@ import { PaymentTransaction } from '../types/payment';
 describe('Tax Year Integrity, Data Consistency & Automated Year Rollover Tests', () => {
   beforeEach(async () => {
     await dbService.init();
+    if ((await dbService.getTaxServices()).length === 0) {
+      await dbService.seedDemoData();
+    }
   });
 
   afterEach(() => {

@@ -114,6 +114,51 @@ class AuthService {
   }
 
   /**
+   * Resets user list to only the active Super Admin account, purging test administrators for production handover.
+   */
+  public async resetUsersToSuperAdminOnly(): Promise<void> {
+    await this.init();
+    const normalizedEmail = SUPER_ADMIN_EMAIL.trim().toLowerCase();
+    const users = this.getAllUsers();
+    let superAdmin = users.find(
+      (u) =>
+        u.role === 'super_admin' ||
+        (u.email && u.email.trim().toLowerCase() === normalizedEmail)
+    );
+
+    const targetHash = await this.hashPassword(INITIAL_SUPER_ADMIN_PASS);
+
+    if (!superAdmin) {
+      superAdmin = {
+        id: 'usr-super-admin',
+        name: 'Arslan (Super Admin)',
+        email: normalizedEmail,
+        role: 'super_admin',
+        passwordHash: targetHash,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+    } else {
+      superAdmin.id = 'usr-super-admin';
+      superAdmin.name = 'Arslan (Super Admin)';
+      superAdmin.email = normalizedEmail;
+      superAdmin.role = 'super_admin';
+      superAdmin.isActive = true;
+      if (!superAdmin.passwordHash) {
+        superAdmin.passwordHash = targetHash;
+      }
+    }
+
+    this.saveUsers([superAdmin]);
+
+    if (this.currentUser && this.currentUser.role === 'super_admin') {
+      this.currentUser.email = normalizedEmail;
+      this.currentUser.name = superAdmin.name;
+      safeStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(this.currentUser));
+    }
+  }
+
+  /**
    * Safe user list without password hashes for frontend display
    */
   public getUsersSafe(): Omit<AppUser, 'passwordHash'>[] {

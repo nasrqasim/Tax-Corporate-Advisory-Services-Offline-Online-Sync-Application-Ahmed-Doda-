@@ -140,17 +140,67 @@ class SQLiteDatabaseService {
         await this.persist();
       }
 
-      // Seed initial data if empty
-      if (this.state.customers.length === 0) {
-        this.seedInitialData();
+      // Production Handover: Auto-clean demo data if not yet migrated for client handover
+      const HANDOVER_FLAG = 'tax_crm_clean_production_handover_v1';
+      const hasHandoverCleaned = safeStorage.getItem(HANDOVER_FLAG) === 'true';
+
+      if (!hasHandoverCleaned) {
+        // Detect if state contains demo customers (Ahmed Ali Khan, etc.)
+        const hasDemoData =
+          this.state.customers.some((c) =>
+            ['Ahmed Ali Khan', 'Fatima Zahra', 'Muhammad Usman'].includes(c.fullName) ||
+            c.id.startsWith('CUST-2026-000')
+          );
+        if (hasDemoData) {
+          await this.cleanDatabaseForProduction();
+        }
+        safeStorage.setItem(HANDOVER_FLAG, 'true');
       }
 
       this.isInitialized = true;
     } catch (err) {
       console.error('Database initialization error:', err);
-      this.seedInitialData();
       this.isInitialized = true;
     }
+  }
+
+  /**
+   * Cleans all transactional records (customers, tax services, payments, refunds,
+   * follow-ups, outbox, audit logs) for real-world production handover to the client.
+   * Preserves official company business profile and Super Admin credentials.
+   */
+  public async cleanDatabaseForProduction(): Promise<void> {
+    this.state.customers = [];
+    this.state.taxServices = [];
+    this.state.payments = [];
+    this.state.refunds = [];
+    this.state.documents = [];
+    this.state.followUps = [];
+    this.state.outbox = [];
+    this.state.auditLogs = [];
+    this.state.receiptSequence = 100;
+
+    // Preserve official Arslan Tax & Corporate Advisory Services profile
+    this.state.settings = {
+      business_profile: {
+        officeName: 'Arslan Tax & Corporate Advisory Services',
+        tagline: 'Income Tax, Sales Tax & NTN Registration Specialists',
+        ntn: '7392814-2',
+        primaryPhone: '03152914836',
+        secondaryPhone: '+923219876543',
+        whatsapp: '03152914836',
+        email: 'arsalantaxcrm@gmail.com',
+        address: 'Winder, Hub, Balochistan, Pakistan',
+        city: 'Hub / Winder',
+        currencySymbol: 'Rs. ',
+        allowOverpayments: false,
+        enableEncryption: true,
+        receiptFooterNote: 'Thank you for your business. Retain this official receipt for your tax records.',
+        developerCredit: 'Software by Roonjha Developers: 03152914836'
+      }
+    };
+
+    await this.persist();
   }
 
   private async persist(): Promise<void> {
@@ -738,8 +788,8 @@ class SQLiteDatabaseService {
     }
   }
 
-  // --- SEED INITIAL REALISTIC DATA ---
-  private seedInitialData(): void {
+  // --- SEED DEMO REALISTIC DATA (For Automated Testing) ---
+  public async seedDemoData(): Promise<void> {
     const now = new Date().toISOString();
 
     const c1: Customer = {
@@ -1030,6 +1080,7 @@ class SQLiteDatabaseService {
       receiptSequence: 103,
       version: 1
     };
+    await this.persist();
   }
 }
 

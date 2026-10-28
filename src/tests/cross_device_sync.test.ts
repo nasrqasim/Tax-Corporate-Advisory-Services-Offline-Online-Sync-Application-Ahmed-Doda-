@@ -10,6 +10,9 @@ import { Customer } from '../types/customer';
 describe('Cross-Device Synchronization & Idempotency Engine', () => {
   it('prevents duplicate transactions when synchronization retries identical operations', async () => {
     await dbService.init();
+    if ((await dbService.getCustomers()).length === 0) {
+      await dbService.seedDemoData();
+    }
     const customers = await dbService.getCustomers();
     const cust = customers[0];
     const services = await dbService.getTaxServices(cust.id);

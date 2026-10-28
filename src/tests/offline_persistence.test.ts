@@ -9,6 +9,9 @@ import { TaxService } from '../types/service';
 describe('Offline Persistence & Database Engine', () => {
   beforeEach(async () => {
     await dbService.init();
+    if ((await dbService.getCustomers()).length === 0) {
+      await dbService.seedDemoData();
+    }
   });
 
   it('loads seeded Pakistani tax clients and services successfully', async () => {
@@ -157,5 +160,21 @@ describe('Database Backup & Verified Disaster Recovery', () => {
     const restoreResult = await restoreDatabaseBackup(JSON.stringify(pkg));
     expect(restoreResult.success).toBe(false);
     expect(restoreResult.message).toContain('Integrity check failed');
+  });
+
+  it('cleans database cleanly for client production handover while preserving Super Admin & business profile', async () => {
+    await dbService.cleanDatabaseForProduction();
+
+    const customers = await dbService.getCustomers();
+    const services = await dbService.getTaxServices();
+    const payments = await dbService.getPayments();
+    const profile = await dbService.getBusinessProfile();
+
+    expect(customers.length).toBe(0);
+    expect(services.length).toBe(0);
+    expect(payments.length).toBe(0);
+    expect(profile.officeName).toBe('Arslan Tax & Corporate Advisory Services');
+    expect(profile.email).toBe('arsalantaxcrm@gmail.com');
+    expect(profile.primaryPhone).toBe('03152914836');
   });
 });

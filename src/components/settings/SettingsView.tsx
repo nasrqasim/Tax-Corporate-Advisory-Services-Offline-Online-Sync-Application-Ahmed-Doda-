@@ -28,6 +28,7 @@ import { TaxService } from '../../types/service';
 import { PaymentTransaction } from '../../types/payment';
 import { createFullDatabaseBackup, restoreDatabaseBackup } from '../../services/backup/backupService';
 import { authService } from '../../services/auth/authService';
+import { dbService } from '../../services/sqlite/db';
 import { exportDateFilteredExcel, filterCustomersByDate, filterServicesByDate, filterPaymentsByDate } from '../../services/export/excelExport';
 import { exportDateFilteredPDF } from '../../services/export/pdfExport';
 
@@ -89,8 +90,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passChangeMsg, setPassChangeMsg] = useState<{ success: boolean; text: string } | null>(null);
 
+  // Production Clean Database States
+  const [isCleaningDb, setIsCleaningDb] = useState(false);
+  const [cleanDbMessage, setCleanDbMessage] = useState<{ success: boolean; text: string } | null>(null);
+
   // Check super admin status
   const isSuperAdmin = currentUser?.role === 'super_admin';
+
+  const handleCleanDatabaseForProduction = async () => {
+    if (!isSuperAdmin) return;
+    const confirmed = window.confirm(
+      'Are you sure you want to clean all test/demo customers, tax services, and payments for production client handover?\n\nSuper Admin credentials and office settings will remain completely intact.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsCleaningDb(true);
+      setCleanDbMessage(null);
+      await dbService.cleanDatabaseForProduction();
+      await authService.resetUsersToSuperAdminOnly();
+      loadUsers();
+      await onReloadDatabase();
+      setCleanDbMessage({
+        success: true,
+        text: 'Database wiped cleanly for production handover! Ready for client use with 0 test records.'
+      });
+    } catch (err: any) {
+      setCleanDbMessage({
+        success: false,
+        text: `Error cleaning database: ${err?.message || 'Unknown error'}`
+      });
+    } finally {
+      setIsCleaningDb(false);
+    }
+  };
 
   useEffect(() => {
     loadUsers();
@@ -743,6 +776,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Section C: Production Handover Clean Slate (Super Admin Only) */}
+          {isSuperAdmin && (
+            <div className="bg-slate-900 border border-amber-900/60 rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                <Trash2 className="w-4 h-4 text-amber-400" />
+                <div>
+                  <h3 className="font-bold text-sm text-white">Client Production Handover (Clean Database)</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Purges all demo/test customers, filings, payments, and audit logs. The Super Admin login ID (<code className="text-emerald-400">{currentUser?.email}</code>), password, and official office profile will be preserved intact.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div className="text-xs space-y-1">
+                  <span className="font-semibold text-slate-200 block">Initialize Clean Slate for Real Client Records</span>
+                  <p className="text-[11px] text-slate-400">
+                    Click this button when handing over the software to the client so they start with zero records.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCleanDatabaseForProduction}
+                  disabled={isCleaningDb}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 active:bg-amber-800 text-white font-semibold text-xs cursor-pointer shadow-sm disabled:opacity-50 transition whitespace-nowrap"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{isCleaningDb ? 'Cleaning Database...' : 'Clean Database for Client Handover'}</span>
+                </button>
+              </div>
+
+              {cleanDbMessage && (
+                <div
+                  className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
+                    cleanDbMessage.success
+                      ? 'bg-emerald-950/70 border-emerald-800 text-emerald-200'
+                      : 'bg-rose-950/70 border-rose-800 text-rose-200'
+                  }`}
+                >
+                  {cleanDbMessage.success ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  )}
+                  <span>{cleanDbMessage.text}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
