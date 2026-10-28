@@ -13,15 +13,21 @@ const USERS_STORAGE_KEY = 'tax_crm_registered_users_v1';
 const PASSWORD_SALT = 'arslan_tax_crm_2026_salt_914836';
 
 // Super Admin initial configuration
-export const SUPER_ADMIN_EMAIL = 'ahmeddodataxcrm@gmail.com';
-const INITIAL_SUPER_ADMIN_PASS = 'Ahmed#@Doda2CO';
+export const SUPER_ADMIN_EMAIL = 'arsalantaxcrm@gmail.com';
+const INITIAL_SUPER_ADMIN_PASS = 'Arsalan@Crm@32tax';
 
 class AuthService {
   private currentUser: AppUser | null = null;
   private isInitialized = false;
 
-  public async init(): Promise<void> {
-    if (this.isInitialized) return;
+  public async init(forceRefresh = false): Promise<void> {
+    if (this.isInitialized && !forceRefresh) {
+      const raw = safeStorage.getItem(USERS_STORAGE_KEY);
+      if (!raw || raw === '[]') {
+        await this.ensureSuperAdminAccount();
+      }
+      return;
+    }
 
     // Load active session if any
     const storedSession = safeStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -47,18 +53,22 @@ class AuthService {
 
   /**
    * Ensures the initial Super Admin account is seeded idempotently
+   * and automatically migrates legacy credentials.
    */
   private async ensureSuperAdminAccount(): Promise<void> {
     const users = this.getAllUsers();
     const normalizedEmail = SUPER_ADMIN_EMAIL.trim().toLowerCase();
-
-    const existingAdmin = users.find(
-      (u) => u.email && u.email.trim().toLowerCase() === normalizedEmail
-    );
-
     const targetHash = await this.hashPassword(INITIAL_SUPER_ADMIN_PASS);
 
-    if (!existingAdmin) {
+    // Look for super admin by new email, old email, or super admin id
+    let admin = users.find(
+      (u) =>
+        (u.email && u.email.trim().toLowerCase() === normalizedEmail) ||
+        (u.email && u.email.trim().toLowerCase() === 'ahmeddodataxcrm@gmail.com') ||
+        u.id === 'usr-super-admin'
+    );
+
+    if (!admin) {
       const superAdmin: AppUser = {
         id: 'usr-super-admin',
         name: 'Arslan (Super Admin)',
@@ -71,17 +81,25 @@ class AuthService {
       users.unshift(superAdmin);
       this.saveUsers(users);
     } else {
-      // Rebrand display name if old brand
-      if (existingAdmin.name === 'Ahmed Doda (Super Admin)') {
-        existingAdmin.name = 'Arslan (Super Admin)';
+      admin.name = 'Arslan (Super Admin)';
+      // Migrate legacy default email
+      if (!admin.email || admin.email.trim().toLowerCase() === 'ahmeddodataxcrm@gmail.com') {
+        admin.email = normalizedEmail;
       }
-      existingAdmin.role = 'super_admin';
-      existingAdmin.isActive = true;
-      // If no passwordHash set yet, apply default
-      if (!existingAdmin.passwordHash) {
-        existingAdmin.passwordHash = targetHash;
+      admin.role = 'super_admin';
+      admin.isActive = true;
+      // Set initial password hash only if not set yet
+      if (!admin.passwordHash) {
+        admin.passwordHash = targetHash;
       }
       this.saveUsers(users);
+
+      // Update active session if currently logged in as Super Admin
+      if (this.currentUser && (this.currentUser.id === admin.id || this.currentUser.role === 'super_admin')) {
+        this.currentUser.email = normalizedEmail;
+        this.currentUser.name = admin.name;
+        safeStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(this.currentUser));
+      }
     }
   }
 
@@ -325,21 +343,16 @@ class AuthService {
       return { success: false, message: 'Please enter both email address and password.' };
     }
 
+    // If Super Admin account does not exist yet or legacy email used, ensure seeded/migrated
+    if (
+      normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase() ||
+      normalizedEmail === 'ahmeddodataxcrm@gmail.com'
+    ) {
+      await this.ensureSuperAdminAccount();
+    }
+
     const users = this.getAllUsers();
     let user = users.find((u) => u.email && u.email.trim().toLowerCase() === normalizedEmail);
-
-    // If Super Admin account does not exist yet or email matches, ensure seeded
-    if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
-      if (!user) {
-        await this.ensureSuperAdminAccount();
-        user = this.getAllUsers().find((u) => u.email && u.email.trim().toLowerCase() === normalizedEmail);
-      }
-      // Support official Super Admin password
-      if (trimmedPassword === 'Ahmed#@Doda2CO' && user && !user.passwordHash) {
-        user.passwordHash = await this.hashPassword(trimmedPassword);
-        this.saveUsers(users);
-      }
-    }
 
     if (!user) {
       return { success: false, message: 'Invalid credentials. User account not found.' };

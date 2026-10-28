@@ -121,7 +121,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
               </p>
               <div className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <span>Phone: {businessProfile.primaryPhone}</span>
-                <span>Email: {businessProfile.email || 'ahmeddodataxcrm@gmail.com'}</span>
+                <span>Email: {businessProfile.email || 'arsalantaxcrm@gmail.com'}</span>
                 {businessProfile.ntn && (
                   <span className="font-semibold text-slate-900 font-mono">
                     NTN: {businessProfile.ntn}

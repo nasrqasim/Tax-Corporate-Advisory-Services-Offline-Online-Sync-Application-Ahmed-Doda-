@@ -55,7 +55,7 @@ export function App() {
     officeName: 'Arslan Tax & Corporate Advisory Services',
     ntn: '7392814-2',
     primaryPhone: '03152914836',
-    email: 'ahmeddodataxcrm@gmail.com',
+    email: 'arsalantaxcrm@gmail.com',
     developerCredit: 'Software by Roonjha Developers: 03152914836',
     address: 'Winder, Hub, Balochistan, Pakistan',
     city: 'Hub / Winder',
@@ -263,7 +263,7 @@ export function App() {
         officeName={businessProfile.officeName}
         ntn={businessProfile.ntn || '7392814-2'}
         address={businessProfile.address}
-        email={businessProfile.email || 'ahmeddodataxcrm@gmail.com'}
+        email={businessProfile.email || 'arsalantaxcrm@gmail.com'}
         phone={businessProfile.primaryPhone}
       />
     );

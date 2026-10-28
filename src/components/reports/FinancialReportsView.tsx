@@ -163,7 +163,7 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
             <p className="text-xs text-slate-700">{businessProfile.address}, {businessProfile.city}</p>
             <div className="text-[11px] text-slate-700 mt-1 flex flex-wrap gap-x-4 gap-y-1">
               <span>Phone: {businessProfile.primaryPhone}</span>
-              <span>Email: {businessProfile.email || 'ahmeddodataxcrm@gmail.com'}</span>
+              <span>Email: {businessProfile.email || 'arsalantaxcrm@gmail.com'}</span>
               {businessProfile.ntn && <span className="font-mono font-bold">NTN: {businessProfile.ntn}</span>}
             </div>
           </div>

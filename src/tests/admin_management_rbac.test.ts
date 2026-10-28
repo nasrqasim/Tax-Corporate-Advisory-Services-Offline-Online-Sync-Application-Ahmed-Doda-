@@ -11,7 +11,7 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
   });
 
   it('authenticates initial Super Admin with official credentials', async () => {
-    const res = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const res = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     expect(res.success).toBe(true);
     expect(res.user).toBeDefined();
     expect(res.user?.role).toBe('super_admin');
@@ -19,7 +19,7 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
   });
 
   it('allows Super Admin to create a new administrator account', async () => {
-    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     const superAdminId = loginRes.user!.id;
 
     const createRes = await authService.createAdministrator(
@@ -45,7 +45,7 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
   });
 
   it('blocks non-super admin users from creating administrator accounts (RBAC Protection)', async () => {
-    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     const superAdminId = loginRes.user!.id;
 
     // Create a regular admin first
@@ -76,7 +76,7 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
   });
 
   it('allows Super Admin to securely change their own Login ID / Email', async () => {
-    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     const superAdminId = loginRes.user!.id;
 
     // Wrong password verification fails
@@ -90,20 +90,20 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
     // Correct password succeeds
     const successChange = await authService.changeSuperAdminLoginId(
       superAdminId,
-      'Ahmed#@Doda2CO',
+      'Arsalan@Crm@32tax',
       'newsuperadmin@arslantax.pk'
     );
     expect(successChange.success).toBe(true);
 
     // New login works
     authService.logout();
-    const newLoginRes = await authService.login('newsuperadmin@arslantax.pk', 'Ahmed#@Doda2CO');
+    const newLoginRes = await authService.login('newsuperadmin@arslantax.pk', 'Arsalan@Crm@32tax');
     expect(newLoginRes.success).toBe(true);
     expect(newLoginRes.user?.email).toBe('newsuperadmin@arslantax.pk');
   });
 
   it('allows Super Admin to securely change their own password', async () => {
-    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     const superAdminId = loginRes.user!.id;
 
     // Incorrect current password fails
@@ -117,14 +117,14 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
     // Correct current password succeeds
     const successPass = await authService.changeSuperAdminPassword(
       superAdminId,
-      'Ahmed#@Doda2CO',
+      'Arsalan@Crm@32tax',
       'ArslanTaxMaster#2026'
     );
     expect(successPass.success).toBe(true);
 
     // Old password is now rejected
     authService.logout();
-    const oldLogin = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const oldLogin = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     expect(oldLogin.success).toBe(false);
 
     // New password succeeds
@@ -133,7 +133,7 @@ describe('Super Admin & Administrator Management (RBAC) Security Verification', 
   });
 
   it('prevents deleting or deactivating the last Super Admin account', async () => {
-    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Ahmed#@Doda2CO');
+    const loginRes = await authService.login(SUPER_ADMIN_EMAIL, 'Arsalan@Crm@32tax');
     const superAdminId = loginRes.user!.id;
 
     // Attempt to delete self as last Super Admin

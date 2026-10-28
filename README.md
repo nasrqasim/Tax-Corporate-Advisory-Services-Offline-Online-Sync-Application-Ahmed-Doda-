@@ -10,7 +10,7 @@
 - **Business Name**: Arslan Tax & Corporate Advisory Services
 - **NTN**: `7392814-2`
 - **Office Address**: Winder, Hub, Balochistan, Pakistan
-- **Official Email**: [ahmeddodataxcrm@gmail.com](mailto:ahmeddodataxcrm@gmail.com)
+- **Official Email**: [arsalantaxcrm@gmail.com](mailto:arsalantaxcrm@gmail.com)
 - **Software Developer Credit**: **Software by Roonjha Developers: 03152914836**
 - **Live Production URL**: [https://arslan-tax-and-advisory-service-winder.vercel.app](https://arslan-tax-and-advisory-service-winder.vercel.app)
 - **GitHub Repository**: [https://github.com/nasrqasim/Tax-Corporate-Advisory-Services-Offline-Online-Sync-Application-Ahmed-Doda-](https://github.com/nasrqasim/Tax-Corporate-Advisory-Services-Offline-Online-Sync-Application-Ahmed-Doda-)

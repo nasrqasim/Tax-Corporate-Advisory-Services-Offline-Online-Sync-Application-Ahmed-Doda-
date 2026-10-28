@@ -628,7 +628,7 @@ class SQLiteDatabaseService {
       primaryPhone: '03152914836',
       secondaryPhone: '+923219876543',
       whatsapp: '03152914836',
-      email: 'ahmeddodataxcrm@gmail.com',
+      email: 'arsalantaxcrm@gmail.com',
       address: 'Winder, Hub, Balochistan, Pakistan',
       city: 'Hub / Winder',
       currencySymbol: 'Rs. ',
