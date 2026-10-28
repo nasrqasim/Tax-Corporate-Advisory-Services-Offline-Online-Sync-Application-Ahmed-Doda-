@@ -12,7 +12,7 @@
 - **Office Address**: Winder, Hub, Balochistan, Pakistan
 - **Official Email**: [ahmeddodataxcrm@gmail.com](mailto:ahmeddodataxcrm@gmail.com)
 - **Software Developer Credit**: **Software by Roonjha Developers: 03152914836**
-- **Live Production URL**: [https://ahmed-doda-tax-crm-ruby.vercel.app](https://ahmed-doda-tax-crm-ruby.vercel.app)
+- **Live Production URL**: [https://arslan-tax-and-advisory-service-winder.vercel.app](https://arslan-tax-and-advisory-service-winder.vercel.app)
 - **GitHub Repository**: [https://github.com/nasrqasim/Tax-Corporate-Advisory-Services-Offline-Online-Sync-Application-Ahmed-Doda-](https://github.com/nasrqasim/Tax-Corporate-Advisory-Services-Offline-Online-Sync-Application-Ahmed-Doda-)
 
 ---
@@ -83,10 +83,11 @@ Built mobile-first for Android smartphones and tablets while delivering a rich d
 ### 7. 🔒 Security, Local Auth & Offline Outbox Sync
 - **Encrypted Local Storage Engine**: ACID-compliant local transactions with durable backups.
 - **Idempotent Outbox Synchronization**: Every create/update/refund operation generates a unique UUID `idempotencyKey`. Network retries will never produce duplicate records or distorted balances.
-- **Staff Authentication**:
-  - Super Admin: `ahmeddodataxcrm@gmail.com`
-  - Password: `Ahmed#@Doda2CO`
+- **Staff Authentication & RBAC**:
+  - Secure role-based access control (`super_admin`, `admin`, `consultant`, `accountant`, `staff`).
+  - Passwords hashed with cryptographic salt using SHA-256.
   - Complete local audit trail with timestamps and user IDs.
+  - Super Admin management panel in Settings to create administrators and manage security.
 
 ---
 
@@ -181,7 +182,7 @@ npm run electron:build
 ## 🌐 Live Cloud Deployment
 
 The application is deployed on Vercel at:
-**[https://ahmed-doda-tax-crm-theta.vercel.app](https://ahmed-doda-tax-crm-theta.vercel.app)**
+**[https://arslan-tax-and-advisory-service-winder.vercel.app](https://arslan-tax-and-advisory-service-winder.vercel.app)**
 
 To deploy your own instance to Vercel:
 ```bash
