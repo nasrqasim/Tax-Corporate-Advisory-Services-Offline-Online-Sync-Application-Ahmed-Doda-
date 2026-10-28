@@ -1,3 +1,4 @@
+import { getCurrentTaxYear, getLocalDateString, getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -44,8 +45,8 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear().toString());
+  const [paymentDate, setPaymentDate] = useState(() => getLocalDateString());
+  const [taxYear, setTaxYear] = useState(() => getCurrentTaxYear());
   const [transactionReference, setTransactionReference] = useState('');
   const [receivedBy, setReceivedBy] = useState('Senior Partner');
   const [notes, setNotes] = useState('');
@@ -84,7 +85,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   useEffect(() => {
     if (currentService) {
       setAmount(currentService.outstandingBalance);
-      if (currentService.taxYear) setTaxYear(currentService.taxYear);
+      if (currentService.taxYear && currentService.taxYear !== 'N/A') setTaxYear(currentService.taxYear);
     }
   }, [currentService?.id, currentService?.outstandingBalance]);
 

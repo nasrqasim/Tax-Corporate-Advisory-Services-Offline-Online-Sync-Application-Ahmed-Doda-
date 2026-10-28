@@ -78,7 +78,7 @@ export const PublicHomePage: React.FC<PublicHomePageProps> = ({
           </h2>
 
           <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Ahmed Doda Tax & Corporate Advisory Services provides end-to-end tax compliance, individual and business Income Tax Returns, NTN registration, sales tax e-filing, and FBR dispute representation.
+            Arslan Tax & Corporate Advisory Services provides end-to-end tax compliance, individual and business Income Tax Returns, NTN registration, sales tax e-filing, and FBR dispute representation.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -200,7 +200,7 @@ export const PublicHomePage: React.FC<PublicHomePageProps> = ({
           {DEVELOPER_CREDIT}
         </div>
         <div className="text-[10px] text-slate-400">
-          © {new Date().getFullYear()} Ahmed Doda Tax & Corporate Advisory Services. All Rights Reserved.
+          © {new Date().getFullYear()} Arslan Tax & Corporate Advisory Services. All Rights Reserved.
         </div>
       </footer>
     </div>

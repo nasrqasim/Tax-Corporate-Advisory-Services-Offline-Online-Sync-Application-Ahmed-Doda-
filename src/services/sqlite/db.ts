@@ -12,6 +12,7 @@ import { BusinessProfile, FollowUpReminder, AppUser } from '../../types/settings
 import { encryptData, decryptData } from '../security/crypto';
 import { normalizeCnic, formatCnic } from '../validation/cnic';
 import { normalizePhone } from '../validation/phone';
+import { resolveTaxYear, getCurrentTaxYear } from '../utils/dateUtils';
 
 const DB_STORAGE_KEY = 'tax_crm_sqlite_encrypted_db_v1';
 const DB_BACKUP_KEY = 'tax_crm_sqlite_db_backup';
@@ -105,6 +106,35 @@ class SQLiteDatabaseService {
           bp.whatsapp = '03152914836';
           stateChanged = true;
         }
+      }
+
+      // Safe, idempotent repair for missing or 'N/A' tax years on historical records
+      if (this.state && Array.isArray(this.state.taxServices)) {
+        this.state.taxServices.forEach((srv) => {
+          if (!srv.taxYear || srv.taxYear === 'N/A') {
+            const repairedYear = resolveTaxYear(srv.taxYear, srv.startDate || srv.createdAt, srv.id);
+            if (repairedYear && repairedYear !== 'Review Required') {
+              srv.taxYear = repairedYear;
+              stateChanged = true;
+
+              if (Array.isArray(this.state.payments)) {
+                this.state.payments.forEach((p) => {
+                  if (p.serviceId === srv.id && (!p.taxYear || p.taxYear === 'N/A')) {
+                    p.taxYear = repairedYear;
+                  }
+                });
+              }
+
+              if (Array.isArray(this.state.followUps)) {
+                this.state.followUps.forEach((f) => {
+                  if (f.serviceId === srv.id && (!f.taxYear || f.taxYear === 'N/A')) {
+                    f.taxYear = repairedYear;
+                  }
+                });
+              }
+            }
+          }
+        });
       }
       if (stateChanged) {
         await this.persist();
@@ -592,7 +622,7 @@ class SQLiteDatabaseService {
   public async getBusinessProfile(): Promise<BusinessProfile> {
     await this.init();
     const defaults: BusinessProfile = {
-      officeName: 'Ahmed Doda Tax & Corporate Advisory Services',
+      officeName: 'Arslan Tax & Corporate Advisory Services',
       tagline: 'Income Tax, Sales Tax & NTN Registration Specialists',
       ntn: '7392814-2',
       primaryPhone: '03152914836',
@@ -607,7 +637,13 @@ class SQLiteDatabaseService {
       receiptFooterNote: 'Thank you for your business. Retain this official receipt for your tax records.',
       developerCredit: 'Software by Roonjha Developers: 03152914836'
     };
-    return { ...defaults, ...(this.state.settings['business_profile'] || {}) };
+    const saved = this.state.settings['business_profile'] || {};
+    const profile = { ...defaults, ...saved };
+    if (profile.officeName === 'Ahmed Doda Tax & Corporate Advisory Services') {
+      profile.officeName = 'Arslan Tax & Corporate Advisory Services';
+      this.state.settings['business_profile'] = profile;
+    }
+    return profile;
   }
 
   public async saveBusinessProfile(profile: BusinessProfile): Promise<void> {
@@ -851,7 +887,7 @@ class SQLiteDatabaseService {
       id: 'SRV-2026-0004',
       customerId: 'CUST-2026-0003',
       serviceType: 'ntn_registration',
-      taxYear: 'N/A',
+      taxYear: '2026',
       startDate: '2026-01-15T09:30:00.000Z',
       filingStatus: 'in_progress',
       checklist: [
@@ -921,7 +957,7 @@ class SQLiteDatabaseService {
       receiptNumber: 'REC-2026-00103',
       customerId: 'CUST-2026-0003',
       serviceId: 'SRV-2026-0004',
-      taxYear: 'N/A',
+      taxYear: '2026',
       amount: 1500,
       paymentMethod: 'JazzCash',
       paymentDate: '2026-01-15T10:05:00.000Z',
@@ -958,7 +994,7 @@ class SQLiteDatabaseService {
       customerName: 'Muhammad Usman',
       serviceId: 'SRV-2026-0004',
       title: 'Obtain Rent Agreement for shop NTN verification',
-      taxYear: 'N/A',
+      taxYear: '2026',
       dueDate: '2026-10-28',
       priority: 'urgent',
       status: 'pending',

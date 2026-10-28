@@ -6,11 +6,11 @@ import { TaxService } from '../types/service';
 import { PaymentTransaction } from '../types/payment';
 
 describe('Mobile-First & Branding Integrity Verification', () => {
-  it('loads exact default business profile branding for Ahmed Doda Tax & Corporate Advisory Services', async () => {
+  it('loads exact default business profile branding for Arslan Tax & Corporate Advisory Services', async () => {
     await dbService.init();
     const profile = await dbService.getBusinessProfile();
 
-    expect(profile.officeName).toBe('Ahmed Doda Tax & Corporate Advisory Services');
+    expect(profile.officeName).toBe('Arslan Tax & Corporate Advisory Services');
     expect(profile.ntn).toBe('7392814-2');
     expect(profile.address).toContain('Winder, Hub, Balochistan, Pakistan');
   });
@@ -23,9 +23,9 @@ describe('Mobile-First & Branding Integrity Verification', () => {
     const callUri = getCallUri(rawMobile);
     expect(callUri).toBe('tel:+923001234567');
 
-    const waUrl = getWhatsAppUrl(rawMobile, 'Assalam-o-Alaikum, contacting from Ahmed Doda Tax & Corporate Advisory Services.');
+    const waUrl = getWhatsAppUrl(rawMobile, 'Assalam-o-Alaikum, contacting from Arslan Tax & Corporate Advisory Services.');
     expect(waUrl).toContain('https://wa.me/923001234567?text=');
-    expect(waUrl).toContain('Ahmed%20Doda%20Tax%20%26%20Corporate%20Advisory%20Services');
+    expect(waUrl).toContain('Arslan%20Tax%20%26%20Corporate%20Advisory%20Services');
   });
 
   it('guarantees accurate financial calculations for mobile card summaries and ledger metrics', () => {

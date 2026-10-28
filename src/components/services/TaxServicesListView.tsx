@@ -1,6 +1,11 @@
+import { EditServiceModal } from './EditServiceModal';
+import { getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState, useMemo } from 'react';
 import {
   FileText,
+  Edit,
+  ChevronLeft,
+  ChevronRight,
   Search,
   Plus,
   Filter,
@@ -25,6 +30,7 @@ interface TaxServicesListViewProps {
   onSelectCustomer: (customer: Customer) => void;
   onAddService: (customer?: Customer) => void;
   onReceivePayment: (customer: Customer, service: TaxService) => void;
+  onSaveService?: (service: TaxService) => Promise<void>;
 }
 
 export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
@@ -34,37 +40,46 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
   refunds,
   onSelectCustomer,
   onAddService,
-  onReceivePayment
+  onReceivePayment,
+  onSaveService
 }) => {
+  const [editingService, setEditingService] = useState<TaxService | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [filingStatusFilter, setFilingStatusFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
 
+  // Pre-indexed customer map for O(1) lookups
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    for (const c of customers) {
+      map.set(c.id, c);
+    }
+    return map;
+  }, [customers]);
+
+  // Pagination states for large datasets
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   // Filtered services
   const filteredServices = useMemo(() => {
     const cleanSearch = searchTerm.trim().toLowerCase();
+    const cleanDigits = searchTerm.replace(/\D/g, '');
 
     return services.filter((srv) => {
-      const cust = customers.find((c) => c.id === srv.customerId);
+      const cust = customerMap.get(srv.customerId);
       const custName = cust ? cust.fullName.toLowerCase() : '';
-      const cnic = cust ? cust.cnic.replace(/\D/g, '') : '';
+      const cnicDigits = cust ? cust.cnic.replace(/\D/g, '') : '';
 
-      // 1. Year filter
       if (yearFilter !== 'all' && srv.taxYear !== yearFilter) return false;
-
-      // 2. Type filter
       if (typeFilter !== 'all' && srv.serviceType !== typeFilter) return false;
-
-      // 3. Filing status
       if (filingStatusFilter !== 'all' && srv.filingStatus !== filingStatusFilter) return false;
 
-      // 4. Payment status
       const fin = calculateServiceFinancials(srv, payments, refunds);
       if (paymentStatusFilter !== 'all' && fin.paymentStatus !== paymentStatusFilter) return false;
 
-      // 5. Search query
       if (!cleanSearch) return true;
 
       return (
@@ -72,10 +87,22 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
         srv.serviceType.toLowerCase().includes(cleanSearch) ||
         (srv.customServiceName || '').toLowerCase().includes(cleanSearch) ||
         custName.includes(cleanSearch) ||
-        cnic.includes(cleanSearch.replace(/\D/g, ''))
+        (cleanDigits && cnicDigits.includes(cleanDigits))
       );
     });
-  }, [services, customers, payments, refunds, yearFilter, typeFilter, filingStatusFilter, paymentStatusFilter, searchTerm]);
+  }, [services, customerMap, payments, refunds, yearFilter, typeFilter, filingStatusFilter, paymentStatusFilter, searchTerm]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, yearFilter, typeFilter, filingStatusFilter, paymentStatusFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredServices.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedServices = useMemo(() => {
+    return filteredServices.slice(startIndex, startIndex + pageSize);
+  }, [filteredServices, startIndex, pageSize]);
 
   return (
     <div className="space-y-4">
@@ -124,11 +151,9 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
             className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
             <option value="all">All Tax Years</option>
-            <option value="2026">Tax Year 2026</option>
-            <option value="2025">Tax Year 2025</option>
-            <option value="2024">Tax Year 2024</option>
-            <option value="2023">Tax Year 2023</option>
-            <option value="N/A">N/A (NTN / Other)</option>
+            {getSelectableTaxYears().map((yr) => (
+              <option key={yr} value={yr}>Tax Year {yr}</option>
+            ))}
           </select>
 
           {/* Type Filter */}
@@ -177,7 +202,7 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
 
       {/* Mobile Services Card List (< lg screens) */}
       <div className="lg:hidden space-y-3">
-        {filteredServices.map((srv) => {
+        {paginatedServices.map((srv) => {
           const cust = customers.find((c) => c.id === srv.customerId);
           const fin = calculateServiceFinancials(srv, payments, refunds);
           const isSettled = fin.outstandingBalance <= 0;
@@ -256,6 +281,14 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
 
               {/* Touch Actions */}
               <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={() => setEditingService(srv)}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1 cursor-pointer transition"
+                  title="Edit Tax Service & Year"
+                >
+                  <Edit className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Edit</span>
+                </button>
                 {fin.outstandingBalance > 0 && cust && (
                   <button
                     type="button"
@@ -306,7 +339,7 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredServices.map((srv) => {
+              {paginatedServices.map((srv) => {
                 const cust = customers.find((c) => c.id === srv.customerId);
                 const fin = calculateServiceFinancials(srv, payments, refunds);
                 const isSettled = fin.outstandingBalance <= 0;
@@ -396,6 +429,13 @@ export const TaxServicesListView: React.FC<TaxServicesListViewProps> = ({
                     {/* Actions */}
                     <td className="py-3 px-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setEditingService(srv)}
+                          className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition"
+                          title="Edit Tax Service & Year"
+                        >
+                          <Edit className="w-3.5 h-3.5 text-blue-400" />
+                        </button>
                         {fin.outstandingBalance > 0 && cust && (
                           <button
                             onClick={() => onReceivePayment(cust, srv)}

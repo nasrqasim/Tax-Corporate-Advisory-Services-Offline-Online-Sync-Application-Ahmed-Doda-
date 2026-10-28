@@ -1,3 +1,4 @@
+import { EditServiceModal } from '../services/EditServiceModal';
 import React, { useState } from 'react';
 import {
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   FileText,
   Plus,
   Edit,
+  Edit3,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -47,6 +49,7 @@ interface CustomerProfileViewProps {
   onPrintStatement: (customer: Customer) => void;
   onPrintReceipt: (payment: PaymentTransaction, service: TaxService) => void;
   onRefundReversal: (payment: PaymentTransaction, service: TaxService) => void;
+  onSaveService?: (service: TaxService) => Promise<void>;
 }
 
 export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
@@ -64,8 +67,10 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
   onPrintReceipt,
   onRefundReversal,
   onDeleteCustomer,
-  onEditPayment
+  onEditPayment,
+  onSaveService
 }) => {
+  const [editingService, setEditingService] = useState<TaxService | null>(null);
   const [activeTab, setActiveTab] = useState<'services' | 'payments' | 'documents' | 'details'>('services');
   const [selectedCnicView, setSelectedCnicView] = useState<'front' | 'back' | null>(null);
 
@@ -176,7 +181,7 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
               onClick={() =>
                 initiateWhatsAppMessage(
                   (customer.whatsappNumber && !customer.whatsappNumber.includes('3001234567') ? customer.whatsappNumber : customer.primaryMobile),
-                  `Assalam-o-Alaikum ${customer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services.`
+                  `Assalam-o-Alaikum ${customer.fullName}, contacting from Arslan Tax & Corporate Advisory Services.`
                 )
               }
               className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-xs transition cursor-pointer min-h-[40px]"
@@ -388,6 +393,15 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
                       )}
                       <button
                         type="button"
+                        onClick={() => setEditingService(service)}
+                        className="min-h-[40px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 border border-slate-700 text-xs flex items-center justify-center gap-1 cursor-pointer transition"
+                        title="Edit Service & Tax Year"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => onViewPaymentHistory(customer, service)}
                         className="min-h-[40px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 text-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
                       >
@@ -506,6 +520,13 @@ export const CustomerProfileView: React.FC<CustomerProfileViewProps> = ({
                                 <span>Pay</span>
                               </button>
                             )}
+                            <button
+                              onClick={() => setEditingService(service)}
+                              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition"
+                              title="Edit Tax Service & Year"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                            </button>
                             <button
                               onClick={() => onViewPaymentHistory(customer, service)}
                               className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer transition"

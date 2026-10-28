@@ -17,6 +17,7 @@ import { TaxService } from '../../types/service';
 import { PaymentTransaction, RefundRecord } from '../../types/payment';
 import { BusinessProfile } from '../../types/settings';
 import { calculateCustomerFinancials, calculateServiceFinancials, formatPKR } from '../../services/financial/ledger';
+import { resolveTaxYear, getLocalDateString } from '../../services/utils/dateUtils';
 
 interface FinancialReportsViewProps {
   customers: Customer[];
@@ -113,7 +114,7 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
     const map: Record<string, { servicesCount: number; fees: number; discounts: number; payable: number; paid: number; outstanding: number }> = {};
     for (const s of services) {
       if (s.filingStatus === 'cancelled') continue;
-      const yr = s.taxYear || 'Other';
+      const yr = resolveTaxYear(s.taxYear, s.startDate || s.createdAt, s.id);
       if (!map[yr]) {
         map[yr] = { servicesCount: 0, fees: 0, discounts: 0, payable: 0, paid: 0, outstanding: 0 };
       }
@@ -130,8 +131,8 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
 
   // 8. Daily & Monthly Collections
   const collectionsSummary = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const thisMonthStr = new Date().toISOString().slice(0, 7);
+    const todayStr = getLocalDateString();
+    const thisMonthStr = todayStr.slice(0, 7);
 
     let todayTotal = 0;
     let thisMonthTotal = 0;

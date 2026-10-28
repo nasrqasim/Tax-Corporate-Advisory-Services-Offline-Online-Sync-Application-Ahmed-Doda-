@@ -1,6 +1,6 @@
 # Mobile-First Application Audit: Offline-First Tax System
 
-**Application**: Ahmed Doda Tax & Corporate Advisory Services  
+**Application**: Arslan Tax & Corporate Advisory Services  
 **System**: Offline-First Tax Customer & Financial Accounts System  
 **NTN**: 7392814-2  
 **Business Location**: Winder, Hub, Balochistan, Pakistan  
@@ -48,7 +48,7 @@
 
 ## 3. Business Branding Update Requirements
 
-- **Firm Name**: `Ahmed Doda Tax & Corporate Advisory Services` (strictly everywhere).
+- **Firm Name**: `Arslan Tax & Corporate Advisory Services` (strictly everywhere).
 - **Firm NTN**: `7392814-2` (must be preserved verbatim).
 - **System Name**: `Offline-First Tax Customer & Financial Accounts System`.
 - **Address**: `Winder, Hub, Balochistan, Pakistan`.

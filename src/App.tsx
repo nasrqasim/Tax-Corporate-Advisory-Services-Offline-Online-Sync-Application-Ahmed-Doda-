@@ -52,7 +52,7 @@ export function App() {
   const [refunds, setRefunds] = useState<RefundRecord[]>([]);
   const [followUps, setFollowUps] = useState<FollowUpReminder[]>([]);
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
-    officeName: 'Ahmed Doda Tax & Corporate Advisory Services',
+    officeName: 'Arslan Tax & Corporate Advisory Services',
     ntn: '7392814-2',
     primaryPhone: '03152914836',
     email: 'ahmeddodataxcrm@gmail.com',
@@ -558,6 +558,11 @@ export function App() {
                     businessProfile={businessProfile}
                     onSaveProfile={handleSaveProfile}
                     onReloadDatabase={reloadData}
+                    currentUser={currentUser}
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    initialTab="backup"
                   />
                 )}
 
@@ -566,6 +571,11 @@ export function App() {
                     businessProfile={businessProfile}
                     onSaveProfile={handleSaveProfile}
                     onReloadDatabase={reloadData}
+                    currentUser={currentUser}
+                    customers={customers}
+                    services={services}
+                    payments={payments}
+                    initialTab="profile"
                   />
                 )}
               </>

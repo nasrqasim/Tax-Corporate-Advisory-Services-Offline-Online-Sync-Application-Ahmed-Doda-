@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'pk.alhaqtax.crm',
-  appName: 'Ahmed Doda Tax CRM',
+  appName: 'Arslan Tax CRM',
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {

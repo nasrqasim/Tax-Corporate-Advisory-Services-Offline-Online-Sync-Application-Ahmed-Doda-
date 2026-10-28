@@ -1,3 +1,4 @@
+import { getCurrentTaxYear, getLocalDateString, getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState } from 'react';
 import {
   Clock,
@@ -30,8 +31,8 @@ export const FollowupsView: React.FC<FollowupsViewProps> = ({
 
   const [customerId, setCustomerId] = useState('');
   const [title, setTitle] = useState('');
-  const [taxYear, setTaxYear] = useState('2025');
-  const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [taxYear, setTaxYear] = useState(() => getCurrentTaxYear());
+  const [dueDate, setDueDate] = useState(() => getLocalDateString());
   const [priority, setPriority] = useState<FollowUpReminder['priority']>('medium');
   const [notes, setNotes] = useState('');
 

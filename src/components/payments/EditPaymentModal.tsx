@@ -1,3 +1,4 @@
+import { getCurrentTaxYear, getLocalDateString, getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -39,8 +40,8 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
 }) => {
   const [amount, setAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear().toString());
+  const [paymentDate, setPaymentDate] = useState(() => getLocalDateString());
+  const [taxYear, setTaxYear] = useState(() => getCurrentTaxYear());
   const [transactionReference, setTransactionReference] = useState('');
   const [receivedBy, setReceivedBy] = useState('');
   const [notes, setNotes] = useState('');
@@ -52,8 +53,8 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
     if (transaction) {
       setAmount(transaction.amount);
       setPaymentMethod(transaction.paymentMethod);
-      setPaymentDate(transaction.paymentDate ? transaction.paymentDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
-      setTaxYear(transaction.taxYear || new Date().getFullYear().toString());
+      setPaymentDate(transaction.paymentDate ? transaction.paymentDate.slice(0, 10) : getLocalDateString());
+      setTaxYear((transaction.taxYear && transaction.taxYear !== 'N/A') ? transaction.taxYear : getCurrentTaxYear());
       setTransactionReference(transaction.transactionReference || '');
       setReceivedBy(transaction.receivedBy || '');
       setNotes(transaction.notes || '');

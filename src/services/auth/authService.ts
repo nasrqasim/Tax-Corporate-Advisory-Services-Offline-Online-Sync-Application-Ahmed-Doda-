@@ -4,13 +4,13 @@
  * Super Admin idempotent seeding, and role-based permissions.
  */
 
-import { AppUser, UserRole } from '../../types/settings';
+import { AppUser, CreateAdminInput, UserRole } from '../../types/settings';
 import { computeSha256 } from '../security/crypto';
 import { safeStorage } from '../sqlite/storage';
 
 const AUTH_USER_STORAGE_KEY = 'tax_crm_auth_user_v1';
 const USERS_STORAGE_KEY = 'tax_crm_registered_users_v1';
-const PASSWORD_SALT = 'ahmed_doda_tax_crm_2026_salt_914836';
+const PASSWORD_SALT = 'arslan_tax_crm_2026_salt_914836';
 
 // Super Admin initial configuration
 export const SUPER_ADMIN_EMAIL = 'ahmeddodataxcrm@gmail.com';
@@ -61,7 +61,7 @@ class AuthService {
     if (!existingAdmin) {
       const superAdmin: AppUser = {
         id: 'usr-super-admin',
-        name: 'Ahmed Doda (Super Admin)',
+        name: 'Arslan (Super Admin)',
         email: normalizedEmail,
         role: 'super_admin',
         passwordHash: targetHash,
@@ -71,10 +71,16 @@ class AuthService {
       users.unshift(superAdmin);
       this.saveUsers(users);
     } else {
-      // Ensure Super Admin has the official updated password and super_admin role
-      existingAdmin.passwordHash = targetHash;
+      // Rebrand display name if old brand
+      if (existingAdmin.name === 'Ahmed Doda (Super Admin)') {
+        existingAdmin.name = 'Arslan (Super Admin)';
+      }
       existingAdmin.role = 'super_admin';
       existingAdmin.isActive = true;
+      // If no passwordHash set yet, apply default
+      if (!existingAdmin.passwordHash) {
+        existingAdmin.passwordHash = targetHash;
+      }
       this.saveUsers(users);
     }
   }
@@ -89,8 +95,221 @@ class AuthService {
     }
   }
 
+  /**
+   * Safe user list without password hashes for frontend display
+   */
+  public getUsersSafe(): Omit<AppUser, 'passwordHash'>[] {
+    return this.getAllUsers().map(({ passwordHash, pinHash, ...safe }) => safe);
+  }
+
   private saveUsers(users: AppUser[]): void {
     safeStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  /**
+   * Create an administrator account (Restricted to Super Admin)
+   */
+  public async createAdministrator(
+    input: CreateAdminInput,
+    requesterId: string
+  ): Promise<{ success: boolean; user?: Omit<AppUser, 'passwordHash'>; message?: string }> {
+    await this.init();
+
+    const users = this.getAllUsers();
+    const requester = users.find((u) => u.id === requesterId);
+    if (!requester || requester.role !== 'super_admin') {
+      return { success: false, message: 'Unauthorized: Only the Super Admin can create administrators.' };
+    }
+
+    const trimmedName = (input.name || '').trim();
+    const normalizedEmail = (input.email || '').trim().toLowerCase();
+    const trimmedPass = (input.password || '').trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      return { success: false, message: 'Administrator name must be at least 2 characters.' };
+    }
+
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return { success: false, message: 'Please provide a valid login ID or email address.' };
+    }
+
+    if (!trimmedPass || trimmedPass.length < 6) {
+      return { success: false, message: 'Password must be at least 6 characters long.' };
+    }
+
+    const emailExists = users.some(
+      (u) => u.email && u.email.trim().toLowerCase() === normalizedEmail
+    );
+    if (emailExists) {
+      return { success: false, message: 'A user with this login ID / email already exists.' };
+    }
+
+    const passwordHash = await this.hashPassword(trimmedPass);
+    const newAdmin: AppUser = {
+      id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: trimmedName,
+      email: normalizedEmail,
+      role: input.role || 'admin',
+      passwordHash,
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+
+    users.push(newAdmin);
+    this.saveUsers(users);
+
+    const { passwordHash: _, pinHash: __, ...safeUser } = newAdmin;
+    return { success: true, user: safeUser, message: 'Administrator created successfully!' };
+  }
+
+  /**
+   * Change Super Admin Login ID securely
+   */
+  public async changeSuperAdminLoginId(
+    userId: string,
+    currentPasswordVerify: string,
+    newLoginId: string
+  ): Promise<{ success: boolean; message: string }> {
+    await this.init();
+
+    const users = this.getAllUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) {
+      return { success: false, message: 'User account not found.' };
+    }
+
+    if (user.role !== 'super_admin') {
+      return { success: false, message: 'Unauthorized: Only Super Admin can perform this action.' };
+    }
+
+    const currentHash = await this.hashPassword((currentPasswordVerify || '').trim());
+    if (user.passwordHash !== currentHash) {
+      return { success: false, message: 'Incorrect current password. Verification failed.' };
+    }
+
+    const normalizedNewId = (newLoginId || '').trim().toLowerCase();
+    if (!normalizedNewId || normalizedNewId.length < 3) {
+      return { success: false, message: 'New Login ID / Email must be at least 3 characters.' };
+    }
+
+    const exists = users.some(
+      (u) => u.id !== userId && u.email && u.email.trim().toLowerCase() === normalizedNewId
+    );
+    if (exists) {
+      return { success: false, message: 'This Login ID / Email is already in use by another user.' };
+    }
+
+    user.email = normalizedNewId;
+    this.saveUsers(users);
+
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser.email = normalizedNewId;
+      safeStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(this.currentUser));
+    }
+
+    return { success: true, message: 'Login ID / Email updated successfully!' };
+  }
+
+  /**
+   * Change Super Admin Password securely
+   */
+  public async changeSuperAdminPassword(
+    userId: string,
+    currentPasswordVerify: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    await this.init();
+
+    const users = this.getAllUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) {
+      return { success: false, message: 'User account not found.' };
+    }
+
+    const currentHash = await this.hashPassword((currentPasswordVerify || '').trim());
+    if (user.passwordHash !== currentHash) {
+      return { success: false, message: 'Current password verification failed. Please check password.' };
+    }
+
+    const trimmedNewPass = (newPassword || '').trim();
+    if (!trimmedNewPass || trimmedNewPass.length < 6) {
+      return { success: false, message: 'New password must be at least 6 characters long.' };
+    }
+
+    user.passwordHash = await this.hashPassword(trimmedNewPass);
+    this.saveUsers(users);
+
+    return { success: true, message: 'Password changed successfully!' };
+  }
+
+  /**
+   * Delete an administrator (Restricted to Super Admin, cannot delete last Super Admin)
+   */
+  public async deleteAdministrator(
+    targetUserId: string,
+    requesterId: string
+  ): Promise<{ success: boolean; message: string }> {
+    await this.init();
+
+    const users = this.getAllUsers();
+    const requester = users.find((u) => u.id === requesterId);
+    if (!requester || requester.role !== 'super_admin') {
+      return { success: false, message: 'Unauthorized: Only Super Admin can delete administrators.' };
+    }
+
+    const targetUser = users.find((u) => u.id === targetUserId);
+    if (!targetUser) {
+      return { success: false, message: 'Target user not found.' };
+    }
+
+    if (targetUser.role === 'super_admin') {
+      const superAdminCount = users.filter((u) => u.role === 'super_admin' && u.isActive).length;
+      if (superAdminCount <= 1) {
+        return { success: false, message: 'Cannot delete the last Super Admin account.' };
+      }
+    }
+
+    if (targetUser.id === requesterId) {
+      return { success: false, message: 'You cannot delete your own active Super Admin account.' };
+    }
+
+    const updatedUsers = users.filter((u) => u.id !== targetUserId);
+    this.saveUsers(updatedUsers);
+
+    return { success: true, message: 'Administrator deleted successfully.' };
+  }
+
+  /**
+   * Toggle administrator status (Active / Inactive)
+   */
+  public async toggleUserActive(
+    targetUserId: string,
+    requesterId: string
+  ): Promise<{ success: boolean; message: string }> {
+    await this.init();
+
+    const users = this.getAllUsers();
+    const requester = users.find((u) => u.id === requesterId);
+    if (!requester || requester.role !== 'super_admin') {
+      return { success: false, message: 'Unauthorized: Only Super Admin can modify administrator status.' };
+    }
+
+    const targetUser = users.find((u) => u.id === targetUserId);
+    if (!targetUser) {
+      return { success: false, message: 'Target user not found.' };
+    }
+
+    if (targetUser.id === requesterId) {
+      return { success: false, message: 'You cannot deactivate your own Super Admin account.' };
+    }
+
+    targetUser.isActive = !targetUser.isActive;
+    this.saveUsers(users);
+
+    return {
+      success: true,
+      message: `User ${targetUser.name} has been ${targetUser.isActive ? 'activated' : 'deactivated'}.`
+    };
   }
 
   /**
@@ -116,14 +335,9 @@ class AuthService {
         user = this.getAllUsers().find((u) => u.email && u.email.trim().toLowerCase() === normalizedEmail);
       }
       // Support official Super Admin password
-      if (trimmedPassword === 'Ahmed#@Doda2CO') {
-        const newHash = await this.hashPassword(trimmedPassword);
-        if (user) {
-          user.passwordHash = newHash;
-          user.role = 'super_admin';
-          user.isActive = true;
-          this.saveUsers(users);
-        }
+      if (trimmedPassword === 'Ahmed#@Doda2CO' && user && !user.passwordHash) {
+        user.passwordHash = await this.hashPassword(trimmedPassword);
+        this.saveUsers(users);
       }
     }
 

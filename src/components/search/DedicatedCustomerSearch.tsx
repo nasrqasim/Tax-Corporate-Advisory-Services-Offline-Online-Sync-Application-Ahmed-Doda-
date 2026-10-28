@@ -338,7 +338,7 @@ export const DedicatedCustomerSearch: React.FC<DedicatedCustomerSearchProps> = (
                     onClick={() =>
                       initiateWhatsAppMessage(
                         (activeCustomer.whatsappNumber && !activeCustomer.whatsappNumber.includes('3001234567') ? activeCustomer.whatsappNumber : activeCustomer.primaryMobile),
-                        `Assalam-o-Alaikum ${activeCustomer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services.`
+                        `Assalam-o-Alaikum ${activeCustomer.fullName}, contacting from Arslan Tax & Corporate Advisory Services.`
                       )
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 cursor-pointer"

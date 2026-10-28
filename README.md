@@ -1,4 +1,4 @@
-# Ahmed Doda Tax & Corporate Advisory Services
+# Arslan Tax & Corporate Advisory Services
 
 ### Offline-First Tax Customer & Financial Accounts Management System
 **Android & Windows Desktop | Offline-First Sync | Accounts & Payments Ledger | Multi-Year Tax Filings**
@@ -7,7 +7,7 @@
 
 ## 🏛️ Business & Developer Credentials
 
-- **Business Name**: Ahmed Doda Tax & Corporate Advisory Services
+- **Business Name**: Arslan Tax & Corporate Advisory Services
 - **NTN**: `7392814-2`
 - **Office Address**: Winder, Hub, Balochistan, Pakistan
 - **Official Email**: [ahmeddodataxcrm@gmail.com](mailto:ahmeddodataxcrm@gmail.com)
@@ -58,9 +58,9 @@ Built mobile-first for Android smartphones and tablets while delivering a rich d
 - **1-Click WhatsApp Chat**: Directly opens `https://wa.me/92XXXXXXXXXX` using the customer's actual entered mobile number.
 - **WhatsApp Tax Payment Confirmation**: Generates a professional, itemized receipt message including customer details, receipt number, tax year, amounts paid, outstanding/advance balance, and developer credit:
   ```text
-  AHMED DODA TAX & CORPORATE ADVISORY SERVICES
+  ARSLAN TAX & CORPORATE ADVISORY SERVICES
   Tax Payment Confirmation / Receipt
-  Business Name: Ahmed Doda Tax & Corporate Advisory Services
+  Business Name: Arslan Tax & Corporate Advisory Services
   NTN: 7392814-2
   Address: Winder, Hub, Balochistan, Pakistan
 

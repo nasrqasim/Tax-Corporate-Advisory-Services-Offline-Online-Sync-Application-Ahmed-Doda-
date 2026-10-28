@@ -1,3 +1,4 @@
+import { getCurrentTaxYear, getLocalDateString, getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -70,9 +71,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   const [customerId, setCustomerId] = useState('');
   const [serviceType, setServiceType] = useState<ServiceType>('income_tax_return');
   const [customServiceName, setCustomServiceName] = useState('');
-  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear().toString());
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [filingDeadline, setFilingDeadline] = useState(() => new Date().toISOString().slice(0, 10));
+  const [taxYear, setTaxYear] = useState(() => getCurrentTaxYear());
+  const [startDate, setStartDate] = useState(() => getLocalDateString());
+  const [filingDeadline, setFilingDeadline] = useState(() => getLocalDateString());
   const [filingStatus, setFilingStatus] = useState<FilingStatus>('in_progress');
   const [assignedStaff, setAssignedStaff] = useState('Senior Consultant');
   const [agreedFee, setAgreedFee] = useState<number>(5000);
@@ -102,11 +103,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
       }))
     );
 
-    // Adjust default tax year for NTN
-    if (serviceType === 'ntn_registration' || serviceType === 'ntn_modification') {
-      setTaxYear('N/A');
-    } else if (taxYear === 'N/A') {
-      setTaxYear(new Date().getFullYear().toString());
+    // Preserve or dynamically set tax year
+    if (!taxYear || taxYear === 'N/A') {
+      setTaxYear(getCurrentTaxYear());
     }
   }, [serviceType]);
 
@@ -150,7 +149,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
     setIsSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const generatedId = `SRV-${taxYear === 'N/A' ? '2026' : taxYear}-${Date.now().toString().slice(-4)}`;
+      const generatedId = `SRV-${taxYear}-${Date.now().toString().slice(-4)}`;
 
       const newService: TaxService = {
         id: generatedId,

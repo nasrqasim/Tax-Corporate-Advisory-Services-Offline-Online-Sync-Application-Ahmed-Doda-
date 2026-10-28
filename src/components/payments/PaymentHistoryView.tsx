@@ -1,6 +1,9 @@
+import { getSelectableTaxYears } from '../../services/utils/dateUtils';
 import React, { useState, useMemo } from 'react';
 import {
   History,
+  ChevronLeft,
+  ChevronRight,
   Search,
   Filter,
   Receipt,
@@ -57,35 +60,35 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Pre-indexed customer map for O(1) lookups
+  const customerNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of customers) {
+      map.set(c.id, c.fullName.toLowerCase());
+    }
+    return map;
+  }, [customers]);
+
+  // Pagination states for large datasets (e.g. 50,000+ payments)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   // Filter payments
   const filteredPayments = useMemo(() => {
     const cleanSearch = searchTerm.trim().toLowerCase();
 
     return payments.filter((p) => {
-      // 1. Customer scope
       if (filterCustomerId && p.customerId !== filterCustomerId) return false;
-
-      // 2. Service scope
       if (filterServiceId && p.serviceId !== filterServiceId) return false;
-
-      // 3. Payment Method
       if (methodFilter !== 'all' && p.paymentMethod !== methodFilter) return false;
-
-      // 4. Status
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-
-      // 5. Tax Year
       if (yearFilter !== 'all' && p.taxYear !== yearFilter) return false;
-
-      // 6. Date Range
       if (startDate && p.paymentDate.slice(0, 10) < startDate) return false;
       if (endDate && p.paymentDate.slice(0, 10) > endDate) return false;
 
-      // 7. Search text: receipt number or transaction reference or customer name
       if (!cleanSearch) return true;
 
-      const cust = customers.find((c) => c.id === p.customerId);
-      const custName = cust ? cust.fullName.toLowerCase() : '';
+      const custName = customerNameMap.get(p.customerId) || '';
 
       return (
         p.receiptNumber.toLowerCase().includes(cleanSearch) ||
@@ -94,7 +97,19 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
         custName.includes(cleanSearch)
       );
     });
-  }, [payments, customers, filterCustomerId, filterServiceId, methodFilter, statusFilter, yearFilter, startDate, endDate, searchTerm]);
+  }, [payments, customerNameMap, filterCustomerId, filterServiceId, methodFilter, statusFilter, yearFilter, startDate, endDate, searchTerm]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, methodFilter, statusFilter, yearFilter, startDate, endDate, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedPayments = useMemo(() => {
+    return filteredPayments.slice(startIndex, startIndex + pageSize);
+  }, [filteredPayments, startIndex, pageSize]);
 
   // Aggregate totals for the filtered set
   const totals = useMemo(() => {
@@ -198,11 +213,9 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
             className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none cursor-pointer text-xs"
           >
             <option value="all">All Years</option>
-            <option value="2026">2026</option>
-            <option value="2025">2025</option>
-            <option value="2024">2024</option>
-            <option value="2023">2023</option>
-            <option value="N/A">N/A</option>
+            {getSelectableTaxYears().map((yr) => (
+              <option key={yr} value={yr}>{yr}</option>
+            ))}
           </select>
 
           {/* Start Date */}
@@ -370,7 +383,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredPayments.map((p) => {
+              {paginatedPayments.map((p) => {
                 const cust = customers.find((c) => c.id === p.customerId);
                 const srv = services.find((s) => s.id === p.serviceId);
 

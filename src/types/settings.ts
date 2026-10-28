@@ -2,7 +2,14 @@
  * System Settings, User Roles & Follow-ups
  */
 
-export type UserRole = 'super_admin' | 'admin' | 'consultant' | 'accountant';
+export type UserRole = 'super_admin' | 'admin' | 'consultant' | 'accountant' | 'staff';
+
+export interface CreateAdminInput {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}
 
 export interface AppUser {
   id: string;

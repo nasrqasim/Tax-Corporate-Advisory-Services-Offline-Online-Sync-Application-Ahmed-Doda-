@@ -177,3 +177,131 @@ export function calculateCustomerFinancials(
     fullyPaidServicesCount
   };
 }
+
+/**
+ * Highly optimized O(N + M) batch financial calculator for large datasets
+ * (e.g. 10,000+ customers and 50,000+ payment transactions).
+ * Pre-indexes payments and services to eliminate O(N * M) loops.
+ */
+export function calculateAllCustomersFinancials(
+  customers: { id: string }[],
+  services: TaxService[],
+  transactions: PaymentTransaction[],
+  refunds: RefundRecord[] = []
+): Map<string, CustomerSummaryMetrics> {
+  const result = new Map<string, CustomerSummaryMetrics>();
+
+  const txByService = new Map<string, PaymentTransaction[]>();
+  const txByCustYear = new Map<string, PaymentTransaction[]>();
+
+  for (const t of transactions) {
+    if (t.serviceId) {
+      let list = txByService.get(t.serviceId);
+      if (!list) {
+        list = [];
+        txByService.set(t.serviceId, list);
+      }
+      list.push(t);
+    }
+    if (t.customerId && t.taxYear) {
+      const key = `${t.customerId}:${t.taxYear}`;
+      let list = txByCustYear.get(key);
+      if (!list) {
+        list = [];
+        txByCustYear.set(key, list);
+      }
+      list.push(t);
+    }
+  }
+
+  const refByService = new Map<string, RefundRecord[]>();
+  for (const r of refunds) {
+    if (r.serviceId) {
+      let list = refByService.get(r.serviceId);
+      if (!list) {
+        list = [];
+        refByService.set(r.serviceId, list);
+      }
+      list.push(r);
+    }
+  }
+
+  const servicesByCust = new Map<string, TaxService[]>();
+  for (const s of services) {
+    if (s.filingStatus === 'cancelled') continue;
+    let list = servicesByCust.get(s.customerId);
+    if (!list) {
+      list = [];
+      servicesByCust.set(s.customerId, list);
+    }
+    list.push(s);
+  }
+
+  for (const c of customers) {
+    const custServices = servicesByCust.get(c.id) || [];
+    let totalServiceFees = 0;
+    let totalDiscounts = 0;
+    let totalPayable = 0;
+    let totalPaid = 0;
+    let totalOutstanding = 0;
+    let totalRefunds = 0;
+    let unpaidServicesCount = 0;
+    let partiallyPaidServicesCount = 0;
+    let fullyPaidServicesCount = 0;
+
+    for (const s of custServices) {
+      const directTx = txByService.get(s.id) || [];
+      const fallbackTx = txByCustYear.get(`${s.customerId}:${s.taxYear}`) || [];
+      const serviceTxns = directTx.length > 0 ? directTx : fallbackTx;
+      const serviceRefunds = refByService.get(s.id) || [];
+
+      const agreedFee = Math.max(0, s.agreedFee || 0);
+      const discount = Math.max(0, Math.min(s.discount || 0, agreedFee));
+      const finalPayable = agreedFee - discount;
+
+      let validPayments = 0;
+      for (const t of serviceTxns) {
+        if (t.status === 'valid' || t.status === 'partially_refunded' || !t.status) {
+          validPayments += t.amount;
+        }
+      }
+
+      let refunded = 0;
+      for (const r of serviceRefunds) {
+        refunded += r.amount;
+      }
+
+      const netPaid = validPayments;
+      const outstanding = Math.max(0, finalPayable - netPaid);
+
+      totalServiceFees += agreedFee;
+      totalDiscounts += discount;
+      totalPayable += finalPayable;
+      totalPaid += netPaid;
+      totalOutstanding += outstanding;
+      totalRefunds += refunded;
+
+      if (netPaid === 0) {
+        unpaidServicesCount++;
+      } else if (netPaid < finalPayable) {
+        partiallyPaidServicesCount++;
+      } else {
+        fullyPaidServicesCount++;
+      }
+    }
+
+    result.set(c.id, {
+      totalServiceFees,
+      totalDiscounts,
+      totalPayable,
+      totalPaid,
+      totalOutstanding,
+      totalRefunds,
+      unpaidServicesCount,
+      partiallyPaidServicesCount,
+      fullyPaidServicesCount
+    });
+  }
+
+  return result;
+}

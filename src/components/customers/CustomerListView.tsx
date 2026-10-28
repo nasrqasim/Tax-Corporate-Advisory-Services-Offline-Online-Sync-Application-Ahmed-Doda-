@@ -8,6 +8,7 @@ import {
   FileText,
   CreditCard,
   ChevronRight,
+  ChevronLeft,
   Filter,
   AlertCircle,
   ExternalLink,
@@ -17,7 +18,7 @@ import {
 import { Customer } from '../../types/customer';
 import { TaxService } from '../../types/service';
 import { PaymentTransaction, RefundRecord } from '../../types/payment';
-import { calculateCustomerFinancials, formatPKR } from '../../services/financial/ledger';
+import { calculateAllCustomersFinancials, formatPKR } from '../../services/financial/ledger';
 import { initiatePhoneCall, initiateWhatsAppMessage } from '../../services/native/contact';
 import { formatLocalPhone } from '../../services/validation/phone';
 
@@ -50,16 +51,29 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [balanceFilter, setBalanceFilter] = useState<'all' | 'has_balance' | 'settled'>('all');
 
-  // Compute customer financial metrics for each customer
+  // Highly optimized O(N + M) calculation for large datasets (10k+ customers)
   const customerListWithFinancials = useMemo(() => {
-    return customers.map((c) => {
-      const fin = calculateCustomerFinancials(c.id, services, payments, refunds);
-      return {
-        customer: c,
-        financials: fin
-      };
-    });
+    const finMap = calculateAllCustomersFinancials(customers, services, payments, refunds);
+    const zeroMetrics = {
+      totalServiceFees: 0,
+      totalDiscounts: 0,
+      totalPayable: 0,
+      totalPaid: 0,
+      totalOutstanding: 0,
+      totalRefunds: 0,
+      unpaidServicesCount: 0,
+      partiallyPaidServicesCount: 0,
+      fullyPaidServicesCount: 0
+    };
+    return customers.map((c) => ({
+      customer: c,
+      financials: finMap.get(c.id) || zeroMetrics
+    }));
   }, [customers, services, payments, refunds]);
+
+  // Pagination states for responsive large dataset rendering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Apply filters
   const filteredList = useMemo(() => {
@@ -86,6 +100,18 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
       return nameMatch || fatherMatch || cnicMatch || phoneMatch || ntnMatch;
     });
   }, [customerListWithFinancials, searchTerm, statusFilter, balanceFilter]);
+
+  // Reset to page 1 whenever filters or page size change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, balanceFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedList = useMemo(() => {
+    return filteredList.slice(startIndex, startIndex + pageSize);
+  }, [filteredList, startIndex, pageSize]);
 
   return (
     <div className="space-y-4">
@@ -151,7 +177,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
 
       {/* Mobile Card View (< lg screens) */}
       <div className="lg:hidden space-y-3">
-        {filteredList.map(({ customer, financials }) => {
+        {paginatedList.map(({ customer, financials }) => {
           const hasBalance = financials.totalOutstanding > 0;
           return (
             <div
@@ -244,7 +270,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                   onClick={() =>
                     initiateWhatsAppMessage(
                       (customer.whatsappNumber && !customer.whatsappNumber.includes('3001234567') ? customer.whatsappNumber : customer.primaryMobile),
-                      `Assalam-o-Alaikum ${customer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services regarding your tax filing.`
+                      `Assalam-o-Alaikum ${customer.fullName}, contacting from Arslan Tax & Corporate Advisory Services regarding your tax filing.`
                     )
                   }
                   className="flex flex-col items-center justify-center min-h-[44px] py-1.5 px-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 active:bg-emerald-800 text-emerald-300 border border-emerald-800/80 text-[10px] cursor-pointer transition"
@@ -323,7 +349,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredList.map(({ customer, financials }) => {
+              {paginatedList.map(({ customer, financials }) => {
                 const hasBalance = financials.totalOutstanding > 0;
                 return (
                   <tr
@@ -384,7 +410,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                             e.stopPropagation();
                             initiateWhatsAppMessage(
                               (customer.whatsappNumber && !customer.whatsappNumber.includes('3001234567') ? customer.whatsappNumber : customer.primaryMobile),
-                              `Assalam-o-Alaikum ${customer.fullName}, contacting from Ahmed Doda Tax & Corporate Advisory Services regarding your tax filing.`
+                              `Assalam-o-Alaikum ${customer.fullName}, contacting from Arslan Tax & Corporate Advisory Services regarding your tax filing.`
                             );
                           }}
                           className="p-1 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-400 border border-emerald-800 cursor-pointer transition"

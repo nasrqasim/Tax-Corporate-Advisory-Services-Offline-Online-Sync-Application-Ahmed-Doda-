@@ -58,9 +58,9 @@ export function buildTaxPaymentWhatsAppMessage(options: WhatsAppShareOptions): s
   const serviceCharges = service ? service.agreedFee : payment.amount;
 
   return [
-    `AHMED DODA TAX & CORPORATE ADVISORY SERVICES`,
+    `ARSLAN TAX & CORPORATE ADVISORY SERVICES`,
     `Tax Payment Confirmation / Receipt`,
-    `Business Name: ${businessProfile.officeName || 'Ahmed Doda Tax & Corporate Advisory Services'}`,
+    `Business Name: ${businessProfile.officeName || 'Arslan Tax & Corporate Advisory Services'}`,
     `NTN: ${businessProfile.ntn || '7392814-2'}`,
     `Address: ${businessProfile.address || 'Winder, Hub, Balochistan, Pakistan'}`,
     ``,
@@ -91,7 +91,7 @@ export function buildTaxPaymentWhatsAppMessage(options: WhatsAppShareOptions): s
     ``,
     `Payment Status: ${paymentStatusLabel}`,
     ``,
-    `Thank you for choosing Ahmed Doda Tax & Corporate Advisory Services.`,
+    `Thank you for choosing Arslan Tax & Corporate Advisory Services.`,
     `For assistance, please contact our office.`,
     ``,
     DEVELOPER_CREDIT
